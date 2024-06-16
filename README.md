@@ -19,3 +19,4 @@ Here is a preview of the app:
 ![IMG-20240510-WA0022](https://github.com/josephassaf999/Sa2e7/assets/88711718/f7ff31b8-0bd5-401f-a685-fd2dac710c10)
 ![IMG-20240510-WA0023](https://github.com/josephassaf999/Sa2e7/assets/88711718/989c8d05-9385-48e8-a4cf-99932800adf1)
 ![IMG-20240510-WA0025](https://github.com/josephassaf999/Sa2e7/assets/88711718/78eb8665-9915-4b1a-be41-16b4e40014a4)
+![IMG-20240510-WA0024](https://github.com/josephassaf999/Sa2e7/assets/88711718/70593bcc-971b-40ac-b684-4962b1ae7d3e)
