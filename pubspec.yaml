@@ -1,0 +1,104 @@
+name: Sa2e7
+description: "A new Flutter project."
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  google_nav_bar: ^5.0.6
+  smooth_page_indicator: ^1.0.0
+  google_maps_flutter: ^2.1.0
+  image_picker: ^1.0.8
+  latlong2: ^0.9.1
+  flutter_map: ^6.1.0
+  carousel_slider: ^4.2.1
+  sqflite: ^2.3.3
+  path_provider: any
+  intl: ^0.19.0
+  flutter_staggered_grid_view: ^0.7.0-nullsafety.3
+  cloud_firestore: ^4.17.2
+  firebase_core: ^2.30.1
+  firebase_auth: ^4.5.0
+  firebase_storage: ^11.7.4
+  uuid: ^4.4.0
+
+
+
+dev_dependencies:
+  flutter_app_name: ^0.1.1
+  flutter_test:
+    sdk: flutter
+  change_app_package_name: ^1.1.0
+flutter_app_name:
+  name: "Sa2e7"
+
+  flutter_lints: ^3.0.0
+
+
+flutter:
+  uses-material-design: true
+  assets:
+     - assets/images/login.webp
+     - assets/images/background.jpg
+     - assets/images/lebanon.avif
+     - assets/images/lebanon.jpg
+     - assets/images/onboardpic1.jpg
+     - assets/images/onboardpic2.jpg
+     - assets/images/onboardpic3.jpg
+     - assets/images/sa2e7 beaches.webp
+     - assets/images/sa2e7 mountain.webp
+     - assets/images/sa2e7 historical site.jpg
+     - assets/images/ramlet el bayda 1.jpeg
+     - assets/images/ramlet el bayda 2.jpeg
+     - assets/images/ramlet el bayda 3.jpeg
+     - assets/images/tyre1.jpg
+     - assets/images/tyre2.jpg
+     - assets/images/tyre3.jpg
+     - assets/images/anfeh1.jpg
+     - assets/images/anfeh2.jpeg
+     - assets/images/anfeh3.webp
+     - assets/images/rawsheh1.jpeg
+     - assets/images/rawsheh2.jpeg
+     - assets/images/rawsheh3.avif
+     - assets/images/mountleb1.jpeg
+     - assets/images/mountleb2.jpeg
+     - assets/images/mountleb3.webp
+     - assets/images/hermon1.jpeg
+     - assets/images/hermon2.jpg
+     - assets/images/hermon3.jpg
+     - assets/images/sannine1.jpg
+     - assets/images/sannine2.webp
+     - assets/images/sannine3.jpg
+     - assets/images/qornet1.jpeg
+     - assets/images/qornet2.jpeg
+     - assets/images/qornet3.jpeg
+     - assets/images/baalbek1.webp
+     - assets/images/baalbek2.jpg
+     - assets/images/baalbek3.webp
+     - assets/images/byblos1.jpg
+     - assets/images/byblos2.jpg
+     - assets/images/byblos3.jpg
+     - assets/images/htyre1.webp
+     - assets/images/htyre2.webp
+     - assets/images/htyre3.jpg
+     - assets/images/anjar1.jpg
+     - assets/images/anjar2.png
+     - assets/images/anjar3.jpg
+  fonts:
+    - family: Pacifico
+      fonts:
+        - asset: assets/fonts/Pacifico-Regular.ttf
+
+    - family: Source Sans Pro
+      fonts:
+        - asset: assets/fonts/SourceSans3-Regular.ttf
+    - family: Robotor4
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
