@@ -1,22 +1,18 @@
-# Sa2e7
+#Sa2e7
 
 Welcome to Sa2e7, your ultimate Android mobile travel guide! This app's front end is crafted with Dart and Flutter,
 ensuring a seamless and engaging user experience. 
 The backend is powered by Firebase, providing reliable data management and real-time updates.  
 Sa2e7 ensures every journey is an unforgettable adventure.
 Here is a preview of the app:
-![IMG-20240510-WA0027](https://github.com/josephassaf999/Sa2e7/assets/88711718/496507bd-b9c2-43c2-b5b0-838c949f9c22)
-![Screenshot 2024-05-10 165351](https://github.com/josephassaf999/Sa2e7/assets/88711718/f2e17448-3b28-4043-9354-b690fe80b676)
-![IMG-20240510-WA0013](https://github.com/josephassaf999/Sa2e7/assets/88711718/10455271-86ad-4a86-a0b6-f5d958271c3c)
-![IMG-20240510-WA0021](https://github.com/josephassaf999/Sa2e7/assets/88711718/8d6ef61c-42f6-4d69-8d69-aff9466e11b5)
-![IMG-20240510-WA0028](https://github.com/josephassaf999/Sa2e7/assets/88711718/14406d71-eb27-4aa7-9ee6-51045cc6208e)
-![IMG-20240510-WA0012](https://github.com/josephassaf999/Sa2e7/assets/88711718/66164290-f191-4308-a617-635746bad851)
-![IMG-20240510-WA0014](https://github.com/josephassaf999/Sa2e7/assets/88711718/55127950-727a-41aa-bffc-9fb5e86bb088)
-![IMG-20240510-WA0015](https://github.com/josephassaf999/Sa2e7/assets/88711718/a22c4d31-c249-4bc9-b479-14d3916a1028)
-![IMG-20240510-WA0016](https://github.com/josephassaf999/Sa2e7/assets/88711718/fd861551-85fb-4d4a-995e-940b0708bd71)
-![IMG-20240510-WA0017](https://github.com/josephassaf999/Sa2e7/assets/88711718/58b45183-5866-48de-936c-6d51e336cad5)
-![IMG-20240510-WA0018](https://github.com/josephassaf999/Sa2e7/assets/88711718/7f865992-10d8-47ba-85e7-d673dc7ced24)
-![IMG-20240510-WA0022](https://github.com/josephassaf999/Sa2e7/assets/88711718/f7ff31b8-0bd5-401f-a685-fd2dac710c10)
-![IMG-20240510-WA0023](https://github.com/josephassaf999/Sa2e7/assets/88711718/989c8d05-9385-48e8-a4cf-99932800adf1)
-![IMG-20240510-WA0025](https://github.com/josephassaf999/Sa2e7/assets/88711718/78eb8665-9915-4b1a-be41-16b4e40014a4)
-![IMG-20240510-WA0024](https://github.com/josephassaf999/Sa2e7/assets/88711718/70593bcc-971b-40ac-b684-4962b1ae7d3e)
+![Sa2e7 welcome](https://github.com/user-attachments/assets/a9ff423c-1dc9-4e2b-b7df-ef1a1e064dac)
+![Sa2e7 welcome screen](https://github.com/user-attachments/assets/3d65676c-6d56-4d05-b395-215db94dc049)
+![Sa2e7 sign up](https://github.com/user-attachments/assets/79cbbbbe-db96-44e4-a05f-4410839b3f9a)
+![Sa2e7 login](https://github.com/user-attachments/assets/8ecb11e5-c605-49b3-84c4-4c67a3afb017)
+![Sa2e7 business home screen](https://github.com/user-attachments/assets/234e5f5b-709e-4e63-b37e-406eeccdfbea)
+![Sa2e7 business screen](https://github.com/user-attachments/assets/abe4929b-876b-464a-90ce-ed3294da719e)
+![Sa2e7 chat screen](https://github.com/user-attachments/assets/8b43893b-e548-486e-a35e-dec5c1343a50)
+![Sa2e7 home page](https://github.com/user-attachments/assets/72bd9c11-eec9-4c15-947d-e80cf8659cfd)
+![Sa2e7 search page](https://github.com/user-attachments/assets/576b0627-d8c6-41da-bc7d-a39df1a5742b)
+![Sa2e7 discover page](https://github.com/user-attachments/assets/e6d2dcff-419c-46df-b2a8-d28b1865b704)
+![Sa2e7 account screen](https://github.com/user-attachments/assets/ccc0c357-00f4-4668-8210-ce320f603893)
