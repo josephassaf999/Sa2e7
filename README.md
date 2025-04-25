@@ -2,7 +2,7 @@
 
 Welcome to Sa2e7, your ultimate Android mobile travel guide! This app's front end is crafted with Dart and Flutter,
 ensuring a seamless and engaging user experience. 
-The robust backend is powered by Firebase, providing reliable data management and real-time updates.  
+The backend is powered by Firebase, providing reliable data management and real-time updates.  
 Sa2e7 ensures every journey is an unforgettable adventure.
 Here is a preview of the app:
 ![IMG-20240510-WA0027](https://github.com/josephassaf999/Sa2e7/assets/88711718/496507bd-b9c2-43c2-b5b0-838c949f9c22)
