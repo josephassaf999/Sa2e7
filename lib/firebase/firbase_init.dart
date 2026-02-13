@@ -6,7 +6,7 @@ Future<void> initializeFirebase() async {
       apiKey: "AIzaSyACNJNC_f_N1RlpC6Fsuud2xjhUj17Sjd4",
       appId: "1:1002537153078:android:0090f39e8df2acaa101e97",
       projectId: "sa2e7-database",
-      storageBucket: "sa2e7-database.appspot.com",
+      storageBucket: "sa2e7-database.firebasestorage.app",
       messagingSenderId: "1002537153078",
     ),
   );

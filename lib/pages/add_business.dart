@@ -7,7 +7,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class AddBusinessPage extends StatefulWidget {
   const AddBusinessPage({super.key});
@@ -20,12 +19,23 @@ class _AddBusinessPageState extends State<AddBusinessPage> {
   final _formKey = GlobalKey<FormState>();
   final Color primaryRed = const Color(0xFFF63C3C);
 
-  String businessName = '';
-  String description = '';
-  String phoneNumber = '';
-  String instagramLink = '';
-  String selectedCategory = "All"; // default category
-  final List<String> categories = ["All","Night Life", "Historical", "Beach", "Food", "Cave"];
+  // Controllers (FIX)
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController descriptionController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+  final TextEditingController instagramController = TextEditingController();
+  final TextEditingController menuController = TextEditingController();
+
+  String selectedCategory = "All";
+
+  final List<String> categories = [
+    "All",
+    "Night Life",
+    "Historical",
+    "Beach",
+    "Food",
+    "Cave"
+  ];
 
   List<File> selectedImages = [];
   List<String> uploadedImageUrls = [];
@@ -51,7 +61,7 @@ class _AddBusinessPageState extends State<AddBusinessPage> {
   Future<void> pickTime(String day, bool isOpen) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay(hour: 9, minute: 0),
+      initialTime: const TimeOfDay(hour: 9, minute: 0),
     );
     if (picked != null) {
       setState(() {
@@ -67,7 +77,7 @@ class _AddBusinessPageState extends State<AddBusinessPage> {
     return "$h:$m";
   }
 
-  /* ---------------- IMAGE PICKING ---------------- */
+  /// ---------------- IMAGE PICKING ----------------
   Future<void> pickImages() async {
     final List<XFile>? files =
     await _picker.pickMultiImage(imageQuality: 80);
@@ -85,84 +95,90 @@ class _AddBusinessPageState extends State<AddBusinessPage> {
     });
   }
 
-  /* ---------------- IMAGE UPLOAD ---------------- */
+  /// ---------------- IMAGE UPLOAD ----------------
   Future<void> uploadImages() async {
     uploadedImageUrls.clear();
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw 'Not logged in';
 
+    final storage = FirebaseStorage.instanceFor(
+      bucket: 'sa2e7-database.firebasestorage.app',
+    );
+
     for (int i = 0; i < selectedImages.length; i++) {
       final file = selectedImages[i];
+      final fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
 
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
-      final ref = FirebaseStorage.instance.ref(fileName); // Root of Storage
+      final ref = storage
+          .ref()
+          .child('businesses')
+          .child(user.uid)
+          .child(fileName);
 
-      try {
-        UploadTask uploadTask = ref.putFile(file);
-        TaskSnapshot snapshot = await uploadTask;
-        String downloadUrl = await snapshot.ref.getDownloadURL();
-        uploadedImageUrls.add(downloadUrl);
-
-        print('Uploaded: $downloadUrl');
-      } catch (e) {
-        print('UPLOAD FAILED → $e');
-        rethrow;
-      }
+      await ref.putFile(file);
+      String downloadUrl = await ref.getDownloadURL();
+      uploadedImageUrls.add(downloadUrl);
     }
   }
 
-  /* ---------------- MAP ---------------- */
+  /// ---------------- MAP ----------------
   void pickLocation(LatLng position) {
     setState(() {
       selectedLocation = position;
     });
+
     _mapController?.animateCamera(
       CameraUpdate.newLatLngZoom(position, 16),
     );
   }
 
-  /* ---------------- SAVE BUSINESS ---------------- */
+  /// ---------------- SAVE BUSINESS ----------------
   Future<void> saveBusiness() async {
-    if (!_formKey.currentState!.validate() || selectedLocation == null) {
+    if (!_formKey.currentState!.validate() ||
+        selectedLocation == null ||
+        selectedImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Fill all required fields and select location')),
+        const SnackBar(
+          content: Text(
+              'Fill all required fields, select location and upload at least one image'),
+        ),
       );
       return;
     }
 
-    _formKey.currentState!.save();
     setState(() => isLoading = true);
 
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw 'User not logged in';
 
-      // Upload images
-      if (selectedImages.isNotEmpty) {
-        await uploadImages();
-      }
+      await uploadImages();
 
-      // Prepare opening hours in string format
       Map<String, Map<String, String?>> hoursToSave = {};
       openingHours.forEach((day, times) {
         hoursToSave[day] = {
-          "open": times["open"] != null ? formatTime(times["open"]) : null,
-          "close": times["close"] != null ? formatTime(times["close"]) : null,
+          "open":
+          times["open"] != null ? formatTime(times["open"]) : null,
+          "close":
+          times["close"] != null ? formatTime(times["close"]) : null,
         };
       });
 
-      // Save to Firestore
-      await FirebaseFirestore.instance.collection('businesses').add({
-        'name': businessName,
-        'description': description,
-        'phone': phoneNumber,
-        'instagram': instagramLink,
+      await FirebaseFirestore.instance
+          .collection('businesses')
+          .add({
+        'name': nameController.text.trim(),
+        'description': descriptionController.text.trim(),
+        'phone': phoneController.text.trim(),
+        'instagram': instagramController.text.trim(),
+        'menuLink': menuController.text.trim(),
         'category': selectedCategory,
-        'location': {
-          'lat': selectedLocation!.latitude,
-          'lng': selectedLocation!.longitude,
-        },
+        'location': GeoPoint(
+          selectedLocation!.latitude,
+          selectedLocation!.longitude,
+        ),
         'images': uploadedImageUrls,
         'openingHours': hoursToSave,
         'ownerId': user.uid,
@@ -183,7 +199,6 @@ class _AddBusinessPageState extends State<AddBusinessPage> {
     }
   }
 
-  /* ---------------- UI ---------------- */
   InputDecoration inputDecoration(String label) => InputDecoration(
     labelText: label,
     filled: true,
@@ -195,12 +210,23 @@ class _AddBusinessPageState extends State<AddBusinessPage> {
   );
 
   @override
+  void dispose() {
+    nameController.dispose();
+    descriptionController.dispose();
+    phoneController.dispose();
+    instagramController.dispose();
+    menuController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: primaryRed,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('Add Business', style: TextStyle(color: Colors.white)),
+        title: const Text('Add Business',
+            style: TextStyle(color: Colors.white)),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -210,71 +236,88 @@ class _AddBusinessPageState extends State<AddBusinessPage> {
           key: _formKey,
           child: ListView(
             children: [
-              // Business Name
               TextFormField(
+                controller: nameController,
                 decoration: inputDecoration('Business Name'),
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                onSaved: (v) => businessName = v!,
+                validator: (v) =>
+                v == null || v.isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 16),
 
-              // Description
               TextFormField(
+                controller: descriptionController,
                 decoration: inputDecoration('Description'),
                 maxLines: 3,
-                onSaved: (v) => description = v ?? '',
+                validator: (v) =>
+                v == null || v.isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 16),
 
-              // Phone Number
               TextFormField(
+                controller: phoneController,
                 decoration: inputDecoration('Phone Number'),
                 keyboardType: TextInputType.phone,
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                onSaved: (v) => phoneNumber = v!,
+                validator: (v) =>
+                v == null || v.isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 16),
 
-              // Instagram
               TextFormField(
-                decoration: inputDecoration('Instagram Link'),
+                controller: instagramController,
+                decoration:
+                inputDecoration('Instagram Link (Optional)'),
                 keyboardType: TextInputType.url,
-                onSaved: (v) => instagramLink = v ?? '',
               ),
               const SizedBox(height: 16),
 
-              // Category Dropdown
+              TextFormField(
+                controller: menuController,
+                decoration:
+                inputDecoration('Menu Link (Optional)'),
+                keyboardType: TextInputType.url,
+              ),
+              const SizedBox(height: 16),
+
               DropdownButtonFormField<String>(
                 decoration: inputDecoration('Category'),
                 value: selectedCategory,
-                items: categories.map((cat) {
-                  return DropdownMenuItem(
-                    value: cat,
-                    child: Text(cat),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => selectedCategory = val!),
+                items: categories
+                    .map((cat) => DropdownMenuItem(
+                  value: cat,
+                  child: Text(cat),
+                ))
+                    .toList(),
+                onChanged: (val) =>
+                    setState(() => selectedCategory = val!),
               ),
               const SizedBox(height: 20),
 
-              // Opening Hours Picker
-              const Text("Opening Hours", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text("Opening Hours",
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
+
               ...openingHours.keys.map((day) {
                 return Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment:
+                  MainAxisAlignment.spaceBetween,
                   children: [
                     Text(day),
                     Row(
                       children: [
                         TextButton(
-                          onPressed: () => pickTime(day, true),
-                          child: Text(formatTime(openingHours[day]!["open"])),
+                          onPressed: () =>
+                              pickTime(day, true),
+                          child: Text(formatTime(
+                              openingHours[day]!["open"])),
                         ),
                         const Text(" - "),
                         TextButton(
-                          onPressed: () => pickTime(day, false),
-                          child: Text(formatTime(openingHours[day]!["close"])),
+                          onPressed: () =>
+                              pickTime(day, false),
+                          child: Text(formatTime(
+                              openingHours[day]!["close"])),
                         ),
                       ],
                     )
@@ -283,29 +326,39 @@ class _AddBusinessPageState extends State<AddBusinessPage> {
               }).toList(),
               const SizedBox(height: 16),
 
-              // Map
               SizedBox(
                 height: 260,
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius:
+                  BorderRadius.circular(16),
                   child: GoogleMap(
-                    initialCameraPosition: const CameraPosition(
-                      target: LatLng(33.8938, 35.5018),
+                    initialCameraPosition:
+                    const CameraPosition(
+                      target:
+                      LatLng(33.8938, 35.5018),
                       zoom: 12,
                     ),
                     myLocationEnabled: true,
                     zoomControlsEnabled: false,
                     gestureRecognizers: {
-                      Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
+                      Factory<
+                          OneSequenceGestureRecognizer>(
+                              () =>
+                              EagerGestureRecognizer()),
                     },
                     onTap: pickLocation,
-                    onMapCreated: (c) => _mapController = c,
-                    markers: selectedLocation == null
+                    onMapCreated: (c) =>
+                    _mapController = c,
+                    markers: selectedLocation ==
+                        null
                         ? {}
                         : {
                       Marker(
-                        markerId: const MarkerId('business'),
-                        position: selectedLocation!,
+                        markerId:
+                        const MarkerId(
+                            'business'),
+                        position:
+                        selectedLocation!,
                       )
                     },
                   ),
@@ -313,36 +366,60 @@ class _AddBusinessPageState extends State<AddBusinessPage> {
               ),
               const SizedBox(height: 20),
 
-              // Image Preview
               if (selectedImages.isNotEmpty)
                 SizedBox(
                   height: 100,
                   child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: selectedImages.length,
-                    itemBuilder: (context, index) {
+                    scrollDirection:
+                    Axis.horizontal,
+                    itemCount:
+                    selectedImages.length,
+                    itemBuilder:
+                        (context, index) {
                       return Stack(
                         children: [
                           Container(
-                            margin: const EdgeInsets.only(right: 10),
+                            margin:
+                            const EdgeInsets
+                                .only(
+                                right: 10),
                             width: 100,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              image: DecorationImage(
-                                image: FileImage(selectedImages[index]),
-                                fit: BoxFit.cover,
+                            decoration:
+                            BoxDecoration(
+                              borderRadius:
+                              BorderRadius
+                                  .circular(
+                                  12),
+                              image:
+                              DecorationImage(
+                                image: FileImage(
+                                    selectedImages[
+                                    index]),
+                                fit:
+                                BoxFit.cover,
                               ),
                             ),
                           ),
                           Positioned(
                             top: 4,
                             right: 4,
-                            child: GestureDetector(
-                              onTap: () => removeImage(index),
-                              child: const CircleAvatar(
+                            child:
+                            GestureDetector(
+                              onTap: () =>
+                                  removeImage(
+                                      index),
+                              child:
+                              const CircleAvatar(
                                 radius: 12,
-                                backgroundColor: Colors.black54,
-                                child: Icon(Icons.close, size: 14, color: Colors.white),
+                                backgroundColor:
+                                Colors
+                                    .black54,
+                                child: Icon(
+                                  Icons.close,
+                                  size: 14,
+                                  color: Colors
+                                      .white,
+                                ),
                               ),
                             ),
                           ),
@@ -353,28 +430,37 @@ class _AddBusinessPageState extends State<AddBusinessPage> {
                 ),
               const SizedBox(height: 12),
 
-              // Upload Images Button
               ElevatedButton.icon(
                 onPressed: pickImages,
-                icon: const Icon(Icons.upload, color: Colors.white),
-                label: const Text('Upload Images', style: TextStyle(color: Colors.white)),
+                icon: const Icon(Icons.upload,
+                    color: Colors.white),
+                label: const Text(
+                  'Upload Images',
+                  style: TextStyle(
+                      color: Colors.white),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryRed,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding:
+                  const EdgeInsets.symmetric(
+                      vertical: 16),
                 ),
               ),
               const SizedBox(height: 30),
 
-              // Add Business Button
               ElevatedButton(
                 onPressed: saveBusiness,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryRed,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding:
+                  const EdgeInsets.symmetric(
+                      vertical: 16),
                 ),
                 child: const Text(
                   'Add Business',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16),
                 ),
               ),
             ],
