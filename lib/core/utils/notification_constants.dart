@@ -10,7 +10,7 @@ class NotificationConstants {
     'Historical',
     'Beach',
     'Food',
-    'Cave',
+    'Religious',
   ];
 
   // Notification titles and messages

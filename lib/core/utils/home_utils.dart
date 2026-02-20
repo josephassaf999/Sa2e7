@@ -14,7 +14,7 @@ class HomeUIConstants {
     "Historical",
     "Beach",
     "Food",
-    "Cave",
+    "Religious",
   ];
 
   // String constants

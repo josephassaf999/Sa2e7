@@ -5,6 +5,8 @@ import 'package:sa2e7/core/services/notification_service.dart';
 
 import 'package:sa2e7/firebase/fcm_notification_handler.dart';
 import 'package:sa2e7/pages/notifications_page.dart';
+import 'package:sa2e7/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -76,7 +78,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    bool isDarkMode = themeNotifier.value == ThemeMode.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -94,19 +96,11 @@ class _SettingsPageState extends State<SettingsPage> {
               trailing: Switch(
                 value: isDarkMode,
                 activeColor: accentRed,
-                onChanged: (value) {
-                  // This assumes you have a theme provider or similar mechanism
-                  // Replace this with your actual theme switching logic
-                  final brightness = value ? Brightness.dark : Brightness.light;
-                  // Example: MyThemeProvider.of(context).setBrightness(brightness);
-                  // For demonstration, show a snackbar
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Theme switching not implemented. Implement your theme logic.',
-                      ),
-                    ),
-                  );
+                onChanged: (value) async {
+                  themeNotifier.value =
+                      value ? ThemeMode.dark : ThemeMode.light;
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('isDarkMode', value);
                 },
               ),
             ),

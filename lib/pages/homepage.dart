@@ -20,6 +20,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  // Filter state
+  bool _showOnlyFavorites = false;
+  // Add more filter fields as needed
   bool _isSearching = false;
   String _searchQuery = "";
   String _selectedCategory = "All";
@@ -100,6 +103,52 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    void _openFilterSheet() {
+      showModalBottomSheet(
+        context: context,
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setModalState) {
+              return Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Filters',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    SwitchListTile(
+                      title: const Text('Show only favorites'),
+                      value: _showOnlyFavorites,
+                      onChanged: (val) {
+                        setModalState(() => _showOnlyFavorites = val);
+                        setState(() => _showOnlyFavorites = val);
+                      },
+                    ),
+                    // Add more filter widgets here
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         iconTheme: const IconThemeData(color: HomeUIConstants.accentWhite),
@@ -215,42 +264,65 @@ class _HomePageState extends State<HomePage> {
                 },
               ),
               const SizedBox(height: 24),
-              HomeUIUtils.buildCategoryFilter(
-                selectedCategory: _selectedCategory,
-                onCategoryChanged: (category) {
-                  setState(() => _selectedCategory = category);
-                },
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                HomeUIConstants.activitiesLabel,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              StreamBuilder<QuerySnapshot>(
-                stream:
-                    FirebaseFirestore.instance
-                        .collection('businesses')
-                        .orderBy('createdAt', descending: true)
-                        .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  final businesses =
-                      snapshot.data!.docs.where((doc) {
-                        final category = doc['category'] ?? 'All';
-                        final name = doc['name'] ?? '';
-                        final matchesCategory =
-                            _selectedCategory == "All" ||
-                            category == _selectedCategory;
-                        final matchesSearch =
-                            _searchQuery.isEmpty ||
-                            name.toLowerCase().contains(
-                              _searchQuery.toLowerCase(),
-                            );
-                        return matchesCategory && matchesSearch;
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: HomeUIUtils.buildCategoryFilter(
+                      selectedCategory: _selectedCategory,
+                      onCategoryChanged: (category) {
+                        setState(() => _selectedCategory = category);
+                      },
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.filter_alt),
+                    tooltip: 'Filters',
+                    void _openFilterSheet() {
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: HomeUIConstants.accentWhite,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                        ),
+                        builder: (context) {
+                          return StatefulBuilder(
+                            builder: (context, setModalState) {
+                              return Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: HomeUIConstants.primaryRed)),
+                                        IconButton(
+                                          icon: Icon(Icons.close, color: HomeUIConstants.primaryRed),
+                                          onPressed: () => Navigator.pop(context),
+                                        ),
+                                      ],
+                                    ),
+                                    SwitchListTile(
+                                      title: Text('Show only favorites', style: TextStyle(color: HomeUIConstants.primaryRed)),
+                                      value: _showOnlyFavorites,
+                                      activeColor: HomeUIConstants.primaryRed,
+                                      onChanged: (val) {
+                                        setModalState(() => _showOnlyFavorites = val);
+                                        setState(() => _showOnlyFavorites = val);
+                                      },
+                                    ),
+                                    // Add more filter widgets here
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      );
+                    }
+                            matchesFavorite;
                       }).toList();
 
                   if (businesses.isEmpty) {

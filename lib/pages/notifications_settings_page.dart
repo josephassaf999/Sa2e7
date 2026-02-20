@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sa2e7/core/services/notification_service.dart';
 import 'package:sa2e7/firebase/fcm_notification_handler.dart';
+import 'package:sa2e7/core/utils/notification_constants.dart';
 
 class NotificationsSettingsPage extends StatefulWidget {
   const NotificationsSettingsPage({Key? key}) : super(key: key);
@@ -12,18 +13,8 @@ class NotificationsSettingsPage extends StatefulWidget {
 }
 
 class _NotificationsSettingsPageState extends State<NotificationsSettingsPage> {
-  final List<String> _allCategories = [
-    'Food',
-    'Shopping',
-    'Health',
-    'Education',
-    'Travel',
-    'Entertainment',
-    'Finance',
-    'Technology',
-    'Sports',
-    'Other',
-  ];
+  List<String> get _allCategories =>
+      NotificationConstants.categories.where((c) => c != 'All').toList();
   final Color primaryRed = const Color(0xFFE53935);
   final Color accentRed = const Color(0xFFFF8A65);
 

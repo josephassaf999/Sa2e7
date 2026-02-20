@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+
 import 'package:sa2e7/pages/homepage.dart';
 import 'package:sa2e7/welcome/onboarding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase/firbase_init.dart';
 import 'firebase/fcm_notification_handler.dart';
+
+final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,11 +19,15 @@ void main() async {
     debugPrint('Firebase initialization error: $e');
   }
 
-  runApp(const MyApp());
+  // Load theme preference
+  final prefs = await SharedPreferences.getInstance();
+  final isDark = prefs.getBool('isDarkMode') ?? false;
+  themeNotifier.value = isDark ? ThemeMode.dark : ThemeMode.light;
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  MyApp({super.key});
 
   // Check if it's the first time the user opens the app
   Future<bool> _checkFirstTime() async {
@@ -36,32 +43,42 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: _checkFirstTime(),
-      builder: (context, snapshot) {
-        // Show loading spinner while checking SharedPreferences
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const MaterialApp(
-            home: Scaffold(body: Center(child: CircularProgressIndicator())),
-          );
-        }
-
-        // Handle error in SharedPreferences
-        if (snapshot.hasError) {
-          return MaterialApp(
-            home: Scaffold(
-              body: Center(child: Text('Error: ${snapshot.error}')),
-            ),
-          );
-        }
-
-        // Decide which page to show
-        final isFirstTime = snapshot.data ?? true;
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          title: "Sa2e7",
-          theme: ThemeData(primarySwatch: Colors.purple),
-          home: isFirstTime ? const OnboardingScreen() : const HomePage(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, mode, _) {
+        return FutureBuilder<bool>(
+          future: _checkFirstTime(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const MaterialApp(
+                home: Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                ),
+              );
+            }
+            if (snapshot.hasError) {
+              return MaterialApp(
+                home: Scaffold(
+                  body: Center(child: Text('Error: \\${snapshot.error}')),
+                ),
+              );
+            }
+            final isFirstTime = snapshot.data ?? true;
+            return MaterialApp(
+              debugShowCheckedModeBanner: false,
+              title: "Sa2e7",
+              theme: ThemeData(
+                primarySwatch: Colors.purple,
+                brightness: Brightness.light,
+              ),
+              darkTheme: ThemeData(
+                primarySwatch: Colors.purple,
+                brightness: Brightness.dark,
+              ),
+              themeMode: mode,
+              home: isFirstTime ? const OnboardingScreen() : const HomePage(),
+            );
+          },
         );
       },
     );
