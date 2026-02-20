@@ -5,10 +5,12 @@ import 'package:sa2e7/drawer/Businesses/Businesses.dart';
 import 'package:sa2e7/pages/business_page.dart';
 import '../drawer/profie tab/profile_page.dart';
 import '../drawer/settings_page.dart';
-import '../utils/nav_transition.dart';
+import '../core/utils/nav_transition.dart';
 import '../welcome/auth_page.dart';
 import 'add_business.dart';
 import 'map.dart';
+import 'package:sa2e7/core/services/home_service.dart';
+import 'package:sa2e7/core/utils/home_utils.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -22,20 +24,7 @@ class _HomePageState extends State<HomePage> {
   String _searchQuery = "";
   String _selectedCategory = "All";
   String? currentUserName;
-  Set<String> _favorites = {}; // Track favorited business IDs
-
-  final Color primaryRed = const Color(0xFFD7141A);
-  final Color primaryGreen = const Color(0xFF006B3C);
-  final Color accentWhite = Colors.white;
-
-  final List<String> categories = [
-    "All",
-    "Night Life",
-    "Historical",
-    "Beach",
-    "Food",
-    "Cave",
-  ];
+  Set<String> _favorites = {};
 
   @override
   void initState() {
@@ -55,70 +44,47 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadUserName() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final doc =
-        await FirebaseFirestore.instance
-            .collection('Users')
-            .doc(user.uid)
-            .get();
+    final name = await HomeService.loadUserName();
     if (!mounted) return;
-
-    setState(() {
-      currentUserName = doc.data()?['name'] ?? 'User';
-    });
+    setState(() => currentUserName = name);
   }
 
   Future<void> _loadFavorites() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      setState(() => _favorites = {});
-      return;
-    }
-
-    final doc =
-        await FirebaseFirestore.instance
-            .collection('Users')
-            .doc(user.uid)
-            .get();
+    final favorites = await HomeService.loadFavorites();
     if (!mounted) return;
-
-    final favorites = List<String>.from(doc.data()?['favorites'] ?? []);
-    setState(() {
-      _favorites = favorites.toSet();
-    });
+    setState(() => _favorites = favorites);
   }
 
   Future<void> _toggleFavorite(String businessId) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      Navigator.push(context, Nav.go(const AuthPage()));
-      return;
-    }
+    setState(() {
+      if (_favorites.contains(businessId)) {
+        _favorites.remove(businessId);
+      } else {
+        _favorites.add(businessId);
+      }
+    });
 
-    final userRef = FirebaseFirestore.instance
-        .collection('Users')
-        .doc(user.uid);
-
-    if (_favorites.contains(businessId)) {
-      // Remove from favorites
-      setState(() => _favorites.remove(businessId));
-      await userRef.update({
-        'favorites': FieldValue.arrayRemove([businessId]),
+    try {
+      await HomeService.toggleFavorite(businessId);
+    } catch (e) {
+      // Revert on error
+      setState(() {
+        if (_favorites.contains(businessId)) {
+          _favorites.remove(businessId);
+        } else {
+          _favorites.add(businessId);
+        }
       });
-    } else {
-      // Add to favorites
-      setState(() => _favorites.add(businessId));
-      await userRef.update({
-        'favorites': FieldValue.arrayUnion([businessId]),
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
     }
   }
 
   void _onAddBusinessPressed() {
     final user = FirebaseAuth.instance.currentUser;
-
     if (user != null) {
       Navigator.push(context, Nav.go(const AddBusinessPage()));
     } else {
@@ -127,7 +93,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _refreshBusinesses() async {
-    await FirebaseFirestore.instance.collection('businesses').get();
+    await HomeService.refreshBusinesses();
     if (!mounted) return;
     setState(() {});
   }
@@ -136,8 +102,8 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        iconTheme: IconThemeData(color: accentWhite),
-        backgroundColor: primaryRed,
+        iconTheme: const IconThemeData(color: HomeUIConstants.accentWhite),
+        backgroundColor: HomeUIConstants.primaryRed,
         centerTitle: true,
         title:
             _isSearching
@@ -151,12 +117,15 @@ class _HomePageState extends State<HomePage> {
                   ),
                   onChanged: (value) => setState(() => _searchQuery = value),
                 )
-                : const Text("Sa2e7", style: TextStyle(color: Colors.white)),
+                : const Text(
+                  HomeUIConstants.appTitle,
+                  style: TextStyle(color: Colors.white),
+                ),
         actions: [
           IconButton(
             icon: Icon(
               _isSearching ? Icons.close : Icons.search,
-              color: accentWhite,
+              color: HomeUIConstants.accentWhite,
             ),
             onPressed: () {
               setState(() {
@@ -167,12 +136,11 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-
       drawer: Drawer(
         child: ListView(
           children: [
             DrawerHeader(
-              decoration: BoxDecoration(color: primaryRed),
+              decoration: BoxDecoration(color: HomeUIConstants.primaryRed),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -186,8 +154,8 @@ class _HomePageState extends State<HomePage> {
                   currentUserName == null
                       ? ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: accentWhite,
-                          foregroundColor: primaryRed,
+                          backgroundColor: HomeUIConstants.accentWhite,
+                          foregroundColor: HomeUIConstants.primaryRed,
                         ),
                         onPressed: () {
                           Navigator.pop(context);
@@ -197,8 +165,8 @@ class _HomePageState extends State<HomePage> {
                       )
                       : ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: accentWhite,
-                          foregroundColor: primaryRed,
+                          backgroundColor: HomeUIConstants.accentWhite,
+                          foregroundColor: HomeUIConstants.primaryRed,
                         ),
                         onPressed: () async {
                           await FirebaseAuth.instance.signOut();
@@ -209,19 +177,19 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             ListTile(
-              leading: Icon(Icons.person, color: primaryRed),
+              leading: Icon(Icons.person, color: HomeUIConstants.primaryRed),
               title: const Text('Profile'),
               onTap: () => Navigator.push(context, Nav.go(const ProfilePage())),
             ),
             ListTile(
-              leading: Icon(Icons.store, color: primaryRed),
+              leading: Icon(Icons.store, color: HomeUIConstants.primaryRed),
               title: const Text('Your businesses'),
               onTap:
                   () =>
                       Navigator.push(context, Nav.go(const YourListingsPage())),
             ),
             ListTile(
-              leading: Icon(Icons.settings, color: primaryRed),
+              leading: Icon(Icons.settings, color: HomeUIConstants.primaryRed),
               title: const Text('Settings'),
               onTap:
                   () => Navigator.push(context, Nav.go(const SettingsPage())),
@@ -229,96 +197,36 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-
       body: RefreshIndicator(
         onRefresh: _refreshBusinesses,
-        color: primaryRed,
+        color: HomeUIConstants.primaryRed,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              /// HERO
-              GestureDetector(
+              HomeUIUtils.buildHeroSection(
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const GoogleMapPage()),
                   );
                 },
-                child: Container(
-                  height: 500,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    image: const DecorationImage(
-                      image: AssetImage('assets/image/lebhero.png'),
-                      fit: BoxFit.fill,
-                    ),
-                  ),
-                  child: Container(
-                    alignment: Alignment.topCenter,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 24,
-                      horizontal: 16,
-                    ),
-                    child: const Text(
-                      "Discover Lebanon",
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        shadows: [
-                          Shadow(
-                            color: Colors.white70,
-                            offset: Offset(1, 1),
-                            blurRadius: 2,
-                          ),
-                        ],
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
               ),
-
               const SizedBox(height: 24),
-
-              /// CATEGORIES
-              SizedBox(
-                height: 40,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: categories.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    final category = categories[index];
-                    final isSelected = _selectedCategory == category;
-                    return ChoiceChip(
-                      label: Text(category),
-                      selected: isSelected,
-                      selectedColor: primaryRed,
-                      backgroundColor: Colors.grey.shade200,
-                      labelStyle: TextStyle(
-                        color: isSelected ? accentWhite : Colors.black,
-                      ),
-                      onSelected:
-                          (_) => setState(() => _selectedCategory = category),
-                    );
-                  },
-                ),
+              HomeUIUtils.buildCategoryFilter(
+                selectedCategory: _selectedCategory,
+                onCategoryChanged: (category) {
+                  setState(() => _selectedCategory = category);
+                },
               ),
-
-              const SizedBox(height: 24),
-
-              /// USER BUSINESSES FROM FIRESTORE
               const SizedBox(height: 24),
               const Text(
-                "Activities",
+                HomeUIConstants.activitiesLabel,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
-
               StreamBuilder<QuerySnapshot>(
                 stream:
                     FirebaseFirestore.instance
@@ -330,7 +238,6 @@ class _HomePageState extends State<HomePage> {
                     return const Center(child: CircularProgressIndicator());
                   }
 
-                  // Filter businesses by category & search
                   final businesses =
                       snapshot.data!.docs.where((doc) {
                         final category = doc['category'] ?? 'All';
@@ -347,7 +254,9 @@ class _HomePageState extends State<HomePage> {
                       }).toList();
 
                   if (businesses.isEmpty) {
-                    return const Center(child: Text("No businesses found."));
+                    return const Center(
+                      child: Text(HomeUIConstants.noBusinessesFound),
+                    );
                   }
 
                   return ListView.builder(
@@ -361,11 +270,15 @@ class _HomePageState extends State<HomePage> {
                           images.isNotEmpty
                               ? images[0]
                               : 'assets/image/default_business.png';
-                      final businessId = b.id; // <-- get the Firestore doc ID
+                      final businessId = b.id;
 
-                      return GestureDetector(
+                      return HomeUIUtils.buildBusinessCard(
+                        businessId: businessId,
+                        name: b['name'] ?? '',
+                        category: b['category'] ?? '',
+                        imageUrl: imageUrl,
+                        isFavorite: _favorites.contains(businessId),
                         onTap: () {
-                          // Navigate to BusinessDetailsPage
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -376,77 +289,7 @@ class _HomePageState extends State<HomePage> {
                             ),
                           );
                         },
-                        child: Container(
-                          height: 180,
-                          margin: const EdgeInsets.only(bottom: 16),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Stack(
-                              children: [
-                                Positioned.fill(
-                                  child:
-                                      imageUrl.startsWith('assets/')
-                                          ? Image.asset(
-                                            imageUrl,
-                                            fit: BoxFit.cover,
-                                          )
-                                          : Image.network(
-                                            imageUrl,
-                                            fit: BoxFit.cover,
-                                          ),
-                                ),
-                                Align(
-                                  alignment: Alignment.bottomLeft,
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 6,
-                                    ),
-                                    color: Colors.black.withOpacity(0.45),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          b['name'] ?? '',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        Text(
-                                          b['category'] ?? '',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontWeight: FontWeight.normal,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                // Heart icon for favorites
-                                Positioned(
-                                  top: 8,
-                                  right: 8,
-                                  child: GestureDetector(
-                                    onTap: () => _toggleFavorite(businessId),
-                                    child: Icon(
-                                      _favorites.contains(businessId)
-                                          ? Icons.favorite
-                                          : Icons.favorite_border,
-                                      color: primaryRed,
-                                      size: 28,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        onFavoriteTapped: () => _toggleFavorite(businessId),
                       );
                     },
                   );
@@ -456,13 +299,12 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _onAddBusinessPressed,
-        backgroundColor: primaryGreen,
+        backgroundColor: HomeUIConstants.primaryGreen,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text(
-          'Add Your Business',
+          HomeUIConstants.addBusinessLabel,
           style: TextStyle(color: Colors.white),
         ),
       ),

@@ -1,12 +1,14 @@
+// ignore_for_file: unused_import
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'map.dart';
-import 'widgets/review_dialog.dart';
-import 'utils/business_utils.dart';
-import 'services/business_service.dart';
+import 'package:sa2e7/core/widgets/review_dialog.dart';
+import 'package:sa2e7/core/utils/business_utils.dart';
+import 'package:sa2e7/core/services/business_service.dart';
 
 class BusinessDetailsPage extends StatefulWidget {
   final String businessId;

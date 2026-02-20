@@ -1,8 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:sa2e7/drawer/Businesses/BusinessEditPage.dart';
 import 'package:sa2e7/pages/business_page.dart';
+import 'package:sa2e7/core/services/business_management_service.dart';
+import 'package:sa2e7/core/utils/business_management_utils.dart';
 
 class YourListingsPage extends StatefulWidget {
   const YourListingsPage({super.key});
@@ -12,50 +12,37 @@ class YourListingsPage extends StatefulWidget {
 }
 
 class _YourListingsPageState extends State<YourListingsPage> {
-  final Color primaryBlue = const Color(0xFFF63C3C);
-
-  final user = FirebaseAuth.instance.currentUser;
-
-  CollectionReference get businesses =>
-      FirebaseFirestore.instance.collection('businesses');
-
-  // Delete a business
-  void deleteBusiness(String businessId) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Confirm Delete"),
-        content: const Text("Are you sure you want to delete this business?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              "Delete",
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      try {
-        await businesses.doc(businessId).delete();
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text("Business deleted")));
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Failed to delete business: $e")));
-      }
-    }
+  // ─── LIFECYCLE ───────────────────────────────────────────────────────────────
+  @override
+  void initState() {
+    super.initState();
   }
 
-  // Navigate to edit page
-  void editBusiness(String businessId) {
+  // ─── DELETE BUSINESS ────────────────────────────────────────────────────────
+  void _deleteBusiness(String businessId) {
+    BusinessManagementUIUtils.showDeleteConfirmation(
+      context: context,
+      onConfirm: () async {
+        try {
+          await BusinessManagementService.deleteBusiness(businessId);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Business deleted successfully")),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Failed to delete business: $e")),
+            );
+          }
+        }
+      },
+    );
+  }
+
+  // ─── EDIT BUSINESS ───────────────────────────────────────────────────────────
+  void _editBusiness(String businessId) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -64,76 +51,68 @@ class _YourListingsPageState extends State<YourListingsPage> {
     );
   }
 
+  // ─── BUILD ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final user = BusinessManagementService.getCurrentUser();
     if (user == null) return const Center(child: Text("Not logged in"));
 
     return Scaffold(
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
-          "Your Listings",
+          BusinessManagementUIConstants.yourListingsTitle,
           style: TextStyle(color: Colors.white),
         ),
-        backgroundColor: primaryBlue,
+        backgroundColor: const Color(0xFFF63C3C),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: businesses.where('ownerId', isEqualTo: user!.uid).snapshots(),
+      body: StreamBuilder(
+        stream: BusinessManagementService.getUserBusinesses(),
         builder: (context, snapshot) {
+          // ─ LOADING STATE ───────────────────────────────────────────────────
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return BusinessManagementUIUtils.buildLoadingState();
           }
 
+          // ─ ERROR STATE ─────────────────────────────────────────────────────
+          if (snapshot.hasError) {
+            return BusinessManagementUIUtils.buildErrorState();
+          }
+
+          // ─ EMPTY STATE ─────────────────────────────────────────────────────
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Text(
-                "You have no Businesses yet.",
-                style: TextStyle(fontSize: 18),
-              ),
-            );
+            return BusinessManagementUIUtils.buildEmptyState();
           }
 
+          // ─ DATA STATE ──────────────────────────────────────────────────────
           final businessDocs = snapshot.data!.docs;
 
           return ListView.builder(
             itemCount: businessDocs.length,
             itemBuilder: (context, index) {
               final business = businessDocs[index];
+              final id = business.id;
               final name = business['name'] ?? '';
-              final description = business['description'] ?? '';
+              final category = business['category'] ?? 'Uncategorized';
+              final images =
+                  (business['images'] as List?)?.cast<String>() ?? [];
+              final firstImage = images.isNotEmpty ? images[0] : '';
 
-              // Since images are not stored in Firestore, default to 0
-              final imagesCount = 0;
-
-              return Card(
-                margin:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  onTap: () {
-                    // Open read-only BusinessDetailsPage
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            BusinessDetailsPage(businessId: business.id),
-                      ),
-                    );
-                  },
-                  title: Text(name),
-                  subtitle: Text(description),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () => editBusiness(business.id),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => deleteBusiness(business.id),
-                      ),
-                    ],
-                  ),
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BusinessDetailsPage(businessId: id),
+                    ),
+                  );
+                },
+                child: BusinessManagementUIUtils.buildBusinessCard(
+                  businessName: name,
+                  category: category,
+                  imageUrl: firstImage,
+                  onEdit: () => _editBusiness(id),
+                  onDelete: () => _deleteBusiness(id),
                 ),
               );
             },

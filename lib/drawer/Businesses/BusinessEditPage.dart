@@ -1,13 +1,13 @@
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:sa2e7/core/services/business_edit_service.dart';
+import 'package:sa2e7/core/utils/business_edit_utils.dart';
 
 class BusinessEditPage extends StatefulWidget {
   final String businessId;
@@ -19,12 +19,7 @@ class BusinessEditPage extends StatefulWidget {
 }
 
 class _BusinessEditPageState extends State<BusinessEditPage> {
-  final CollectionReference businesses = FirebaseFirestore.instance.collection(
-    'businesses',
-  );
-
   final _formKey = GlobalKey<FormState>();
-  final Color primaryRed = const Color(0xFFF63C3C);
   bool isLoading = true;
 
   // Text controllers
@@ -35,26 +30,10 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
   late TextEditingController menuController;
 
   // Category
-  String selectedCategory = 'All';
-  final List<String> categories = [
-    'All',
-    'Night Life',
-    'Historical',
-    'Beach',
-    'Food',
-    'Cave',
-  ];
+  String selectedCategory = BusinessEditUIConstants.defaultCategory;
 
   // Opening hours
-  Map<String, Map<String, TimeOfDay?>> openingHours = {
-    'Monday': {'open': null, 'close': null},
-    'Tuesday': {'open': null, 'close': null},
-    'Wednesday': {'open': null, 'close': null},
-    'Thursday': {'open': null, 'close': null},
-    'Friday': {'open': null, 'close': null},
-    'Saturday': {'open': null, 'close': null},
-    'Sunday': {'open': null, 'close': null},
-  };
+  late Map<String, Map<String, TimeOfDay?>> openingHours;
 
   // Images
   List<String> imageUrls = [];
@@ -62,7 +41,6 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
 
   // Location
   LatLng? location;
-  GoogleMapController? _mapController;
 
   // ─── INIT ──────────────────────────────────────────────────────────────────
   @override
@@ -73,6 +51,7 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
     phoneController = TextEditingController();
     instagramController = TextEditingController();
     menuController = TextEditingController();
+    openingHours = BusinessEditUIUtils.initializeOpeningHours();
     _loadBusiness();
   }
 
@@ -88,71 +67,57 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
 
   // ─── LOAD ──────────────────────────────────────────────────────────────────
   Future<void> _loadBusiness() async {
-    final doc = await businesses.doc(widget.businessId).get();
-    if (!doc.exists) {
-      setState(() => isLoading = false);
-      return;
-    }
+    try {
+      final data = await BusinessEditService.loadBusiness(widget.businessId);
+      if (data == null) {
+        setState(() => isLoading = false);
+        return;
+      }
 
-    final data = doc.data() as Map<String, dynamic>;
+      nameController.text = data['name'] ?? '';
+      descriptionController.text = data['description'] ?? '';
+      phoneController.text = data['phone'] ?? '';
+      instagramController.text = data['instagram'] ?? '';
+      menuController.text = data['menuLink'] ?? '';
 
-    nameController.text = data['name'] ?? '';
-    descriptionController.text = data['description'] ?? '';
-    phoneController.text = data['phone'] ?? '';
-    instagramController.text = data['instagram'] ?? '';
-    menuController.text = data['menuLink'] ?? '';
+      final cat = data['category'] ?? BusinessEditUIConstants.defaultCategory;
+      selectedCategory =
+          BusinessEditUIConstants.categories.contains(cat)
+              ? cat
+              : BusinessEditUIConstants.defaultCategory;
 
-    final cat = data['category'] ?? 'All';
-    selectedCategory = categories.contains(cat) ? cat : 'All';
+      location = BusinessEditUIUtils.parseLocation(data['location']);
 
-    // Handle both GeoPoint (add_business) and Map {lat,lng} (old edit_business)
-    final rawLoc = data['location'];
-    if (rawLoc is GeoPoint) {
-      location = LatLng(rawLoc.latitude, rawLoc.longitude);
-    } else if (rawLoc is Map &&
-        rawLoc['lat'] != null &&
-        rawLoc['lng'] != null) {
-      location = LatLng(
-        (rawLoc['lat'] as num).toDouble(),
-        (rawLoc['lng'] as num).toDouble(),
-      );
-    } else {
-      location = const LatLng(33.8938, 35.5018);
-    }
-
-    // Opening hours
-    final rawHours = data['openingHours'];
-    if (rawHours is Map) {
-      for (final day in openingHours.keys) {
-        final times = rawHours[day];
-        if (times is Map) {
-          openingHours[day]!['open'] = _parseTime(times['open']);
-          openingHours[day]!['close'] = _parseTime(times['close']);
+      // Opening hours
+      final rawHours = data['openingHours'];
+      if (rawHours is Map) {
+        for (final day in openingHours.keys) {
+          final times = rawHours[day];
+          if (times is Map) {
+            openingHours[day]!['open'] = BusinessEditUIUtils.parseTime(
+              times['open'],
+            );
+            openingHours[day]!['close'] = BusinessEditUIUtils.parseTime(
+              times['close'],
+            );
+          }
         }
       }
+
+      imageUrls = List<String>.from(data['images'] ?? []);
+
+      setState(() => isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading: $e')));
+        Navigator.pop(context);
+      }
     }
-
-    imageUrls = List<String>.from(data['images'] ?? []);
-
-    setState(() => isLoading = false);
   }
 
   // ─── HELPERS ───────────────────────────────────────────────────────────────
-  TimeOfDay? _parseTime(dynamic raw) {
-    if (raw == null || raw.toString() == '--:--') return null;
-    final parts = raw.toString().split(':');
-    if (parts.length != 2) return null;
-    final h = int.tryParse(parts[0]);
-    final m = int.tryParse(parts[1]);
-    if (h == null || m == null) return null;
-    return TimeOfDay(hour: h, minute: m);
-  }
-
-  String _formatTime(TimeOfDay? t) {
-    if (t == null) return '--:--';
-    return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-  }
-
   Future<void> _pickTime(String day, bool isOpen) async {
     final picked = await showTimePicker(
       context: context,
@@ -163,40 +128,6 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
     if (picked != null) {
       setState(() => openingHours[day]![isOpen ? 'open' : 'close'] = picked);
     }
-  }
-
-  InputDecoration _input(String label, {String? hint}) => InputDecoration(
-    labelText: label,
-    hintText: hint,
-    filled: true,
-    fillColor: Colors.red.shade50,
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(18),
-      borderSide: BorderSide.none,
-    ),
-  );
-
-  Widget _sectionLabel(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 24, bottom: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 18,
-            decoration: BoxDecoration(
-              color: primaryRed,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
   }
 
   // ─── IMAGES ────────────────────────────────────────────────────────────────
@@ -210,24 +141,6 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
       setState(() => imageUrls.removeAt(index));
 
   void _removeNewImage(int index) => setState(() => newImages.removeAt(index));
-
-  Future<List<String>> _uploadNewImages() async {
-    final List<String> urls = [];
-    for (final image in newImages) {
-      try {
-        final fileName =
-            '${DateTime.now().millisecondsSinceEpoch}_${image.name}';
-        final ref = FirebaseStorage.instance.ref().child(
-          'business_images/${widget.businessId}/$fileName',
-        );
-        await ref.putFile(File(image.path));
-        urls.add(await ref.getDownloadURL());
-      } catch (e) {
-        debugPrint('Image upload error: $e');
-      }
-    }
-    return urls;
-  }
 
   // ─── SAVE ──────────────────────────────────────────────────────────────────
   Future<void> _saveBusiness() async {
@@ -243,29 +156,29 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
     setState(() => isLoading = true);
 
     try {
-      final newUrls = await _uploadNewImages();
+      // Upload new images
+      final newUrls = await BusinessEditService.uploadNewImages(
+        widget.businessId,
+        newImages,
+      );
       final allImages = [...imageUrls, ...newUrls];
 
-      final Map<String, Map<String, String?>> hoursToSave = {};
-      for (final entry in openingHours.entries) {
-        hoursToSave[entry.key] = {
-          'open': _formatTime(entry.value['open']),
-          'close': _formatTime(entry.value['close']),
-        };
-      }
+      // Convert opening hours to save format
+      final hoursToSave = BusinessEditUIUtils.convertOpeningHours(openingHours);
 
-      await businesses.doc(widget.businessId).update({
-        'name': nameController.text.trim(),
-        'description': descriptionController.text.trim(),
-        'phone': phoneController.text.trim(),
-        'instagram': instagramController.text.trim(),
-        'menuLink': menuController.text.trim(),
-        'category': selectedCategory,
-        'location': GeoPoint(location!.latitude, location!.longitude),
-        'images': allImages,
-        'openingHours': hoursToSave,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // Save to Firestore
+      await BusinessEditService.saveBusiness(
+        businessId: widget.businessId,
+        name: nameController.text,
+        description: descriptionController.text,
+        phone: phoneController.text,
+        instagram: instagramController.text,
+        menuLink: menuController.text,
+        category: selectedCategory,
+        location: location!,
+        allImages: allImages,
+        openingHours: hoursToSave,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -294,6 +207,8 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    const primaryRed = Color(0xFFF63C3C);
+
     return Scaffold(
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
@@ -311,11 +226,13 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── BASIC INFO ────────────────────────────────────────────
-              _sectionLabel('Basic Info'),
+              BusinessEditUIUtils.sectionLabel('Basic Info'),
 
               TextFormField(
                 controller: nameController,
-                decoration: _input('Business Name'),
+                decoration: BusinessEditUIUtils.inputDecoration(
+                  'Business Name',
+                ),
                 textCapitalization: TextCapitalization.words,
                 validator: (v) => v == null || v.isEmpty ? 'Required' : null,
               ),
@@ -323,7 +240,7 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
 
               TextFormField(
                 controller: descriptionController,
-                decoration: _input('Description'),
+                decoration: BusinessEditUIUtils.inputDecoration('Description'),
                 maxLines: 4,
                 textCapitalization: TextCapitalization.sentences,
                 validator: (v) => v == null || v.isEmpty ? 'Required' : null,
@@ -332,7 +249,7 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
 
               TextFormField(
                 controller: phoneController,
-                decoration: _input('Phone Number'),
+                decoration: BusinessEditUIUtils.inputDecoration('Phone Number'),
                 keyboardType: TextInputType.phone,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 validator: (v) => v == null || v.isEmpty ? 'Required' : null,
@@ -341,7 +258,7 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
 
               TextFormField(
                 controller: instagramController,
-                decoration: _input(
+                decoration: BusinessEditUIUtils.inputDecoration(
                   'Instagram Link (optional)',
                   hint: 'username or full URL',
                 ),
@@ -351,18 +268,21 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
 
               TextFormField(
                 controller: menuController,
-                decoration: _input('Menu Link (optional)', hint: 'https://...'),
+                decoration: BusinessEditUIUtils.inputDecoration(
+                  'Menu Link (optional)',
+                  hint: 'https://...',
+                ),
                 keyboardType: TextInputType.url,
               ),
 
               // ── CATEGORY ─────────────────────────────────────────────
-              _sectionLabel('Category'),
+              BusinessEditUIUtils.sectionLabel('Category'),
 
               DropdownButtonFormField<String>(
                 value: selectedCategory,
-                decoration: _input('Category'),
+                decoration: BusinessEditUIUtils.inputDecoration('Category'),
                 items:
-                    categories
+                    BusinessEditUIConstants.categories
                         .map(
                           (cat) =>
                               DropdownMenuItem(value: cat, child: Text(cat)),
@@ -372,7 +292,7 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
               ),
 
               // ── OPENING HOURS ─────────────────────────────────────────
-              _sectionLabel('Opening Hours'),
+              BusinessEditUIUtils.sectionLabel('Opening Hours'),
 
               Container(
                 decoration: BoxDecoration(
@@ -408,7 +328,7 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
                                 ),
                               ),
                               child: Text(
-                                _formatTime(open),
+                                BusinessEditUIUtils.formatTime(open),
                                 style: TextStyle(
                                   color:
                                       open != null ? primaryRed : Colors.grey,
@@ -429,7 +349,7 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
                                 ),
                               ),
                               child: Text(
-                                _formatTime(close),
+                                BusinessEditUIUtils.formatTime(close),
                                 style: TextStyle(
                                   color:
                                       close != null ? primaryRed : Colors.grey,
@@ -458,7 +378,7 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
               ),
 
               // ── LOCATION ──────────────────────────────────────────────
-              _sectionLabel('Location'),
+              BusinessEditUIUtils.sectionLabel('Location'),
 
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
@@ -469,7 +389,6 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
                       target: location!,
                       zoom: 16,
                     ),
-                    onMapCreated: (c) => _mapController = c,
                     markers: {
                       Marker(
                         markerId: const MarkerId('business_marker'),
@@ -498,7 +417,7 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
               ),
 
               // ── IMAGES ────────────────────────────────────────────────
-              _sectionLabel('Images'),
+              BusinessEditUIUtils.sectionLabel('Images'),
 
               if (imageUrls.isNotEmpty || newImages.isNotEmpty)
                 SizedBox(
@@ -582,11 +501,11 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: _pickImages,
-                  icon: Icon(
+                  icon: const Icon(
                     Icons.add_photo_alternate_outlined,
                     color: primaryRed,
                   ),
-                  label: Text(
+                  label: const Text(
                     'Add Images',
                     style: TextStyle(color: primaryRed),
                   ),
