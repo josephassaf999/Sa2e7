@@ -3,12 +3,15 @@ import 'package:sa2e7/pages/homepage.dart';
 import 'package:sa2e7/welcome/onboarding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase/firbase_init.dart';
+import 'firebase/fcm_notification_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
     await initializeFirebase();
+    // Initialize FCM after Firebase is ready
+    await FCMNotificationHandler().initializeFCM();
   } catch (e) {
     debugPrint('Firebase initialization error: $e');
   }
@@ -39,9 +42,7 @@ class MyApp extends StatelessWidget {
         // Show loading spinner while checking SharedPreferences
         if (snapshot.connectionState != ConnectionState.done) {
           return const MaterialApp(
-            home: Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            ),
+            home: Scaffold(body: Center(child: CircularProgressIndicator())),
           );
         }
 
