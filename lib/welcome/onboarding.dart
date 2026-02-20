@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:lottie/lottie.dart';
-
-import '../pages/homepage.dart';
+import 'package:sa2e7/core/services/onboarding_service.dart';
+import 'package:sa2e7/core/utils/onboarding_utils.dart';
+import 'package:sa2e7/pages/homepage.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -16,23 +16,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
   bool isLastPage = false;
 
-  final Color red = const Color(0xFFED1C24);
-
   Future<void> _finishOnboarding() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isFirstTime', false);
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const HomePage()),
-    );
+    await OnboardingService.finishOnboarding();
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomePage()),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        color: red, // solid red background
+        color: OnboardingUIConstants.primaryRed,
         child: SafeArea(
           child: Column(
             children: [
@@ -44,7 +42,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: TextButton(
                     onPressed: _finishOnboarding,
                     child: const Text(
-                      "Skip",
+                      OnboardingUIConstants.skipButton,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -54,7 +52,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                 ),
               ),
-
               Expanded(
                 child: PageView(
                   controller: _controller,
@@ -63,43 +60,36 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   },
                   children: [
                     buildPageImage(
-                      image: "assets/image/lebhero.png", // static image
-                      title: "Welcome to Sa2e7",
-                      subtitle:
-                      "Discover destinations, experiences, and hidden gems around you.",
+                      image: OnboardingUIConstants.heroImage,
+                      title: OnboardingUIConstants.page1Title,
+                      subtitle: OnboardingUIConstants.page1Subtitle,
                     ),
                     buildPage(
-                      animation: "assets/lottie/Map.json",
-                      title: "Plan Your Journey",
-                      subtitle:
-                      "Find places, activities, and trips that match your vibe.",
+                      animation: OnboardingUIConstants.mapAnimation,
+                      title: OnboardingUIConstants.page2Title,
+                      subtitle: OnboardingUIConstants.page2Subtitle,
                     ),
                     buildPage(
-                      animation: "assets/lottie/Compass.json",
-                      title: "Explore With Confidence",
-                      subtitle:
-                      "Navigate easily and make every adventure unforgettable.",
+                      animation: OnboardingUIConstants.compassAnimation,
+                      title: OnboardingUIConstants.page3Title,
+                      subtitle: OnboardingUIConstants.page3Subtitle,
                     ),
                   ],
                 ),
               ),
-
               const SizedBox(height: 20),
-
               SmoothPageIndicator(
                 controller: _controller,
                 count: 3,
                 effect: ExpandingDotsEffect(
                   activeDotColor: Colors.white,
                   dotColor: Colors.white.withOpacity(0.5),
-                  dotHeight: 10,
-                  dotWidth: 10,
-                  expansionFactor: 3,
+                  dotHeight: OnboardingUIUtils.dotHeight,
+                  dotWidth: OnboardingUIUtils.dotHeight,
+                  expansionFactor: OnboardingUIUtils.expansionFactor,
                 ),
               ),
-
               const SizedBox(height: 30),
-
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: SizedBox(
@@ -110,31 +100,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         _finishOnboarding();
                       } else {
                         _controller.nextPage(
-                          duration: const Duration(milliseconds: 400),
+                          duration: OnboardingUIUtils.animationDuration,
                           curve: Curves.easeInOut,
                         );
                       }
                     },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 2,
-                    ),
+                    style: OnboardingUIUtils.nextButtonStyle(),
                     child: Text(
-                      isLastPage ? "Get Started" : "Next",
+                      isLastPage
+                          ? OnboardingUIConstants.getStartedButton
+                          : OnboardingUIConstants.nextButton,
                       style: TextStyle(
                         fontSize: 18,
-                        color: red,
+                        color: OnboardingUIConstants.primaryRed,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                 ),
               ),
-
               const SizedBox(height: 40),
             ],
           ),
@@ -156,11 +140,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         children: [
           SizedBox(
             height: 260,
-            child: Lottie.asset(
-              animation,
-              repeat: true,
-              fit: BoxFit.contain,
-            ),
+            child: Lottie.asset(animation, repeat: true, fit: BoxFit.contain),
           ),
           const SizedBox(height: 40),
           Text(
@@ -198,13 +178,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(
-            height: 260,
-            child: Image.asset(
-              image,
-              fit: BoxFit.contain,
-            ),
-          ),
+          SizedBox(height: 260, child: Image.asset(image, fit: BoxFit.contain)),
           const SizedBox(height: 40),
           Text(
             title,

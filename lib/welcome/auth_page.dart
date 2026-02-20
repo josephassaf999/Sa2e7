@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../firebase/firebase_logic.dart'; // Your AuthService
+import 'package:sa2e7/firebase/firebase_logic.dart';
+import 'package:sa2e7/core/utils/auth_utils.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -19,87 +20,93 @@ class _AuthPageState extends State<AuthPage> {
   final TextEditingController confirmController = TextEditingController();
   final TextEditingController nameController = TextEditingController();
 
-  // Colors
-  final Color primaryBlue = const Color(0xFFFF0000);
-  final Color mintGreen = const Color(0xFFD86767);
-
-  // Validators
-  bool isValidEmail(String email) {
-    final regex = RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$");
-    return regex.hasMatch(email);
-  }
-
-  bool isValidPassword(String password) => password.length >= 6;
-
-  // Login
+  // ─── LOGIN ──────────────────────────────────────────────────────────────────
   Future<void> _login() async {
-    if (!isValidEmail(emailController.text) || !isValidPassword(passwordController.text)) return;
+    if (!AuthUIUtils.validateLogin(
+      email: emailController.text,
+      password: passwordController.text,
+    ))
+      return;
+
     setState(() => loading = true);
     final user = await _authService.login(
       email: emailController.text,
       password: passwordController.text,
     );
     setState(() => loading = false);
-    if (user != null) Navigator.pop(context);
+    if (user != null && mounted) Navigator.pop(context);
   }
 
-  // Register
+  // ─── REGISTER ───────────────────────────────────────────────────────────────
   Future<void> _register() async {
-    final email = emailController.text;
-    final password = passwordController.text;
-    final confirm = confirmController.text;
-    final name = nameController.text;
-
-    if (name.isEmpty || !isValidEmail(email) || !isValidPassword(password) || password != confirm) return;
+    if (!AuthUIUtils.validateRegister(
+      name: nameController.text,
+      email: emailController.text,
+      password: passwordController.text,
+      confirm: confirmController.text,
+    ))
+      return;
 
     setState(() => loading = true);
     final user = await _authService.register(
-      name: name,
-      email: email,
-      password: password,
-      confirmPassword: confirm,
+      name: nameController.text,
+      email: emailController.text,
+      password: passwordController.text,
+      confirmPassword: confirmController.text,
     );
     setState(() => loading = false);
-    if (user != null) Navigator.pop(context);
+    if (user != null && mounted) Navigator.pop(context);
   }
 
-  // Google login
+  // ─── GOOGLE SIGN IN ─────────────────────────────────────────────────────────
   Future<void> _googleSignIn() async {
     setState(() => loading = true);
     final user = await _authService.signInWithGoogle();
     setState(() => loading = false);
-    if (user != null) Navigator.pop(context);
+    if (user != null && mounted) Navigator.pop(context);
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    confirmController.dispose();
+    nameController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: primaryBlue,
+      backgroundColor: AuthUIConstants.primaryBlue,
       appBar: AppBar(
-        backgroundColor: primaryBlue,
+        backgroundColor: AuthUIConstants.primaryBlue,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : AnimatedSwitcher(
-        duration: const Duration(milliseconds: 700),
-        switchInCurve: Curves.easeInOut,
-        switchOutCurve: Curves.easeInOut,
-        transitionBuilder: (child, animation) {
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: Offset(0, showLogin ? 1.0 : -1.0),
-              end: Offset.zero,
-            ).animate(animation),
-            child: child,
-          );
-        },
-        child: showLogin ? _buildLoginPanel() : _buildRegisterPanel(),
-      ),
+      body:
+          loading
+              ? const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              )
+              : AnimatedSwitcher(
+                duration: const Duration(milliseconds: 700),
+                switchInCurve: Curves.easeInOut,
+                switchOutCurve: Curves.easeInOut,
+                transitionBuilder: (child, animation) {
+                  return SlideTransition(
+                    position: Tween<Offset>(
+                      begin: Offset(0, showLogin ? 1.0 : -1.0),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  );
+                },
+                child: showLogin ? _buildLoginPanel() : _buildRegisterPanel(),
+              ),
     );
   }
 
@@ -117,60 +124,58 @@ class _AuthPageState extends State<AuthPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text("Login",
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: primaryBlue)),
+              Text(
+                AuthUIConstants.loginTitle,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: AuthUIConstants.primaryBlue,
+                ),
+              ),
               const SizedBox(height: 24),
               TextField(
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.email, color: mintGreen),
-                  hintText: "Email",
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                  filled: true,
-                  fillColor: mintGreen.withOpacity(0.1),
+                decoration: AuthUIUtils.buildInputDecoration(
+                  hintText: AuthUIConstants.emailHint,
+                  prefixIcon: Icons.email,
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: passwordController,
                 obscureText: true,
-                decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.lock, color: mintGreen),
-                  hintText: "Password",
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                  filled: true,
-                  fillColor: mintGreen.withOpacity(0.1),
+                decoration: AuthUIUtils.buildInputDecoration(
+                  hintText: AuthUIConstants.passwordHint,
+                  prefixIcon: Icons.lock,
+                  obscure: true,
                 ),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryBlue,
-                  padding: const EdgeInsets.symmetric(horizontal: 64, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                ),
+                style: AuthUIUtils.primaryButtonStyle(),
                 onPressed: _login,
-                child: const Text("Login", style: TextStyle(fontSize: 18, color: Colors.white)),
+                child: const Text(
+                  AuthUIConstants.loginButton,
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
               ),
               const SizedBox(height: 16),
-              // Google button
               ElevatedButton.icon(
-                label: const Text("Sign in with Google", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                label: const Text(
+                  AuthUIConstants.googleSignIn,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
+                style: AuthUIUtils.secondaryButtonStyle(),
                 onPressed: _googleSignIn,
               ),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => setState(() => showLogin = false),
-                child: Text("Don't have an account? Register", style: TextStyle(color: mintGreen)),
+                child: Text(
+                  AuthUIConstants.noAccount,
+                  style: const TextStyle(color: AuthUIConstants.mintGreen),
+                ),
               ),
             ],
           ),
@@ -193,84 +198,76 @@ class _AuthPageState extends State<AuthPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text("Register",
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: primaryBlue)),
+              Text(
+                AuthUIConstants.registerTitle,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: AuthUIConstants.primaryBlue,
+                ),
+              ),
               const SizedBox(height: 24),
               TextField(
                 controller: nameController,
-                decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.person, color: mintGreen),
-                  hintText: "Name",
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                  filled: true,
-                  fillColor: mintGreen.withOpacity(0.1),
+                decoration: AuthUIUtils.buildInputDecoration(
+                  hintText: AuthUIConstants.nameHint,
+                  prefixIcon: Icons.person,
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.email, color: mintGreen),
-                  hintText: "Email",
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                  filled: true,
-                  fillColor: mintGreen.withOpacity(0.1),
+                decoration: AuthUIUtils.buildInputDecoration(
+                  hintText: AuthUIConstants.emailHint,
+                  prefixIcon: Icons.email,
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: passwordController,
                 obscureText: true,
-                decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.lock, color: mintGreen),
-                  hintText: "Password",
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                  filled: true,
-                  fillColor: mintGreen.withOpacity(0.1),
+                decoration: AuthUIUtils.buildInputDecoration(
+                  hintText: AuthUIConstants.passwordHint,
+                  prefixIcon: Icons.lock,
+                  obscure: true,
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: confirmController,
                 obscureText: true,
-                decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.lock_outline, color: mintGreen),
-                  hintText: "Confirm Password",
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                  filled: true,
-                  fillColor: mintGreen.withOpacity(0.1),
+                decoration: AuthUIUtils.buildInputDecoration(
+                  hintText: AuthUIConstants.confirmPasswordHint,
+                  prefixIcon: Icons.lock_outline,
+                  obscure: true,
                 ),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryBlue,
-                  padding: const EdgeInsets.symmetric(horizontal: 64, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                ),
+                style: AuthUIUtils.primaryButtonStyle(),
                 onPressed: _register,
-                child: const Text("Register", style: TextStyle(fontSize: 18, color: Colors.white)),
+                child: const Text(
+                  AuthUIConstants.registerButton,
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
-                label: const Text("Register with Google", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                label: const Text(
+                  AuthUIConstants.googleRegister,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
+                style: AuthUIUtils.secondaryButtonStyle(),
                 onPressed: _googleSignIn,
               ),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => setState(() => showLogin = true),
-                child: Text("Already have an account? Login", style: TextStyle(color: mintGreen)),
+                child: Text(
+                  AuthUIConstants.haveAccount,
+                  style: const TextStyle(color: AuthUIConstants.mintGreen),
+                ),
               ),
             ],
           ),
