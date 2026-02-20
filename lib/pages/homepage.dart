@@ -278,50 +278,45 @@ class _HomePageState extends State<HomePage> {
                   IconButton(
                     icon: const Icon(Icons.filter_alt),
                     tooltip: 'Filters',
-                    void _openFilterSheet() {
-                      showModalBottomSheet(
-                        context: context,
-                        backgroundColor: HomeUIConstants.accentWhite,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                        ),
-                        builder: (context) {
-                          return StatefulBuilder(
-                            builder: (context, setModalState) {
-                              return Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: HomeUIConstants.primaryRed)),
-                                        IconButton(
-                                          icon: Icon(Icons.close, color: HomeUIConstants.primaryRed),
-                                          onPressed: () => Navigator.pop(context),
-                                        ),
-                                      ],
-                                    ),
-                                    SwitchListTile(
-                                      title: Text('Show only favorites', style: TextStyle(color: HomeUIConstants.primaryRed)),
-                                      value: _showOnlyFavorites,
-                                      activeColor: HomeUIConstants.primaryRed,
-                                      onChanged: (val) {
-                                        setModalState(() => _showOnlyFavorites = val);
-                                        setState(() => _showOnlyFavorites = val);
-                                      },
-                                    ),
-                                    // Add more filter widgets here
-                                  ],
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      );
-                    }
+                    onPressed: _openFilterSheet,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                HomeUIConstants.activitiesLabel,
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              StreamBuilder<QuerySnapshot>(
+                stream:
+                    FirebaseFirestore.instance
+                        .collection('businesses')
+                        .orderBy('createdAt', descending: true)
+                        .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  var businesses = snapshot.data!.docs.toList();
+                  // Client-side filtering
+                  businesses =
+                      businesses.where((doc) {
+                        final category = doc['category'] ?? 'All';
+                        final name = doc['name'] ?? '';
+                        final matchesCategory =
+                            _selectedCategory == "All" ||
+                            category == _selectedCategory;
+                        final matchesSearch =
+                            _searchQuery.isEmpty ||
+                            name.toLowerCase().contains(
+                              _searchQuery.toLowerCase(),
+                            );
+                        final matchesFavorite =
+                            !_showOnlyFavorites || _favorites.contains(doc.id);
+                        return matchesCategory &&
+                            matchesSearch &&
                             matchesFavorite;
                       }).toList();
 
