@@ -61,7 +61,7 @@ class _AddBusinessPageState extends State<AddBusinessPage> {
   }
 
   Future<void> pickImages() async {
-    final List<XFile>? files = await _picker.pickMultiImage(imageQuality: 80);
+    final List<XFile> files = await _picker.pickMultiImage(imageQuality: 80);
 
     if (files != null && files.isNotEmpty) {
       setState(() {
@@ -262,7 +262,7 @@ class _AddBusinessPageState extends State<AddBusinessPage> {
                             ),
                           ],
                         );
-                      }).toList(),
+                      }),
                       const SizedBox(height: 16),
                       SizedBox(
                         height: 260,

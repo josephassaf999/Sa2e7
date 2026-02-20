@@ -33,8 +33,9 @@ class BusinessService {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied ||
-            permission == LocationPermission.deniedForever)
+            permission == LocationPermission.deniedForever) {
           return null;
+        }
       }
 
       final position = await Geolocator.getCurrentPosition();

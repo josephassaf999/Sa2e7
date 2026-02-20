@@ -201,8 +201,9 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                           .collection('businesses')
                           .snapshots(),
                   builder: (context, snapshot) {
-                    if (!snapshot.hasData)
+                    if (!snapshot.hasData) {
                       return const Center(child: CircularProgressIndicator());
+                    }
 
                     final businessDocs = snapshot.data!.docs;
                     final Set<Marker> businessMarkers =
@@ -214,8 +215,9 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
 
                               final category = data['category'] ?? 'All';
                               if (selectedCategory != 'All' &&
-                                  category != selectedCategory)
+                                  category != selectedCategory) {
                                 return null;
+                              }
 
                               final position = LatLng(
                                 loc.latitude,
@@ -237,8 +239,9 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                             .toSet();
 
                     final allMarkers = {...businessMarkers};
-                    if (_selectedMarker != null)
+                    if (_selectedMarker != null) {
                       allMarkers.add(_selectedMarker!);
+                    }
 
                     return GoogleMap(
                       onMapCreated: _onMapCreated,

@@ -25,8 +25,9 @@ class _AuthPageState extends State<AuthPage> {
     if (!AuthUIUtils.validateLogin(
       email: emailController.text,
       password: passwordController.text,
-    ))
+    )) {
       return;
+    }
 
     setState(() => loading = true);
     final user = await _authService.login(
@@ -44,8 +45,9 @@ class _AuthPageState extends State<AuthPage> {
       email: emailController.text,
       password: passwordController.text,
       confirm: confirmController.text,
-    ))
+    )) {
       return;
+    }
 
     setState(() => loading = true);
     final user = await _authService.register(
