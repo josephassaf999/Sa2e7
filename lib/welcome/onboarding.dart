@@ -60,8 +60,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-
     return Scaffold(
       body: Stack(
         children: [
@@ -111,7 +109,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   colors: [
                     OnboardingUIUtils.backgroundGradient().colors[1],
                     OnboardingUIUtils.backgroundGradient().colors[1]
-                        .withOpacity(0.8),
+                    // ignore: deprecated_member_use
+                    .withOpacity(0.8),
                     Colors.transparent,
                   ],
                 ),
@@ -173,6 +172,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       count: 3,
                       effect: ExpandingDotsEffect(
                         activeDotColor: Colors.white,
+                        // ignore: deprecated_member_use
                         dotColor: Colors.white.withOpacity(0.3),
                         dotHeight: OnboardingUIUtils.dotHeight,
                         dotWidth: OnboardingUIUtils.dotHeight,

@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -63,7 +65,7 @@ class _AddBusinessPageState extends State<AddBusinessPage> {
   Future<void> pickImages() async {
     final List<XFile> files = await _picker.pickMultiImage(imageQuality: 80);
 
-    if (files != null && files.isNotEmpty) {
+    if (files.isNotEmpty) {
       setState(() {
         selectedImages.addAll(files.map((e) => File(e.path)));
       });
