@@ -43,12 +43,22 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
   }
 
   Future<void> _loadBusiness() async {
-    businessData = await BusinessService.loadBusiness(widget.businessId);
-    if (businessData != null) {
-      distanceInKm = await BusinessService.calculateDistance(
-        businessData!['location'],
+    final data = await BusinessService.loadBusiness(widget.businessId);
+    if (data != null) {
+      final distance = await BusinessService.calculateDistance(
+        data['location'],
       );
-      isFavorite = await BusinessService.checkIfFavorite(widget.businessId);
+      final favorite = await BusinessService.checkIfFavorite(widget.businessId);
+      if (mounted) {
+        setState(() {
+          businessData = data;
+          distanceInKm = distance;
+          isFavorite = favorite;
+          isLoading = false;
+        });
+      }
+    } else {
+      if (mounted) setState(() => isLoading = false);
     }
   }
 

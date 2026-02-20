@@ -7,11 +7,13 @@ import 'package:sa2e7/core/utils/map_utils.dart';
 class BusinessInfoCard extends StatelessWidget {
   final Map<String, dynamic> business;
   final VoidCallback onClose;
+  final VoidCallback onNavigate;
 
   const BusinessInfoCard({
     super.key,
     required this.business,
     required this.onClose,
+    required this.onNavigate,
   });
 
   @override
@@ -134,10 +136,7 @@ class BusinessInfoCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     ElevatedButton.icon(
-                      onPressed: () {
-                        // Parent handles navigation
-                        Navigator.of(context).pop();
-                      },
+                      onPressed: onNavigate,
                       icon: const Icon(Icons.navigation, color: Colors.white),
                       label: const Text(
                         MapUIConstants.navigateLabel,

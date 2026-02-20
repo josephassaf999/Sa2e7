@@ -211,7 +211,20 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                             .map((doc) {
                               final data = doc.data() as Map<String, dynamic>;
                               final loc = data['location'];
-                              if (loc is! GeoPoint) return null;
+
+                              // Handle both GeoPoint and Map {lat,lng}
+                              LatLng? position;
+                              if (loc is GeoPoint) {
+                                position = LatLng(loc.latitude, loc.longitude);
+                              } else if (loc is Map &&
+                                  loc['lat'] != null &&
+                                  loc['lng'] != null) {
+                                position = LatLng(
+                                  (loc['lat'] as num).toDouble(),
+                                  (loc['lng'] as num).toDouble(),
+                                );
+                              }
+                              if (position == null) return null;
 
                               final category = data['category'] ?? 'All';
                               if (selectedCategory != 'All' &&
@@ -219,16 +232,15 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                                 return null;
                               }
 
-                              final position = LatLng(
-                                loc.latitude,
-                                loc.longitude,
-                              );
                               return Marker(
                                 markerId: MarkerId(doc.id),
                                 position: position,
                                 onTap:
-                                    () =>
-                                        _onMarkerTapped(doc.id, data, position),
+                                    () => _onMarkerTapped(
+                                      doc.id,
+                                      data,
+                                      position!,
+                                    ),
                                 infoWindow: InfoWindow(
                                   title: data['name'] ?? 'Business',
                                   snippet: category,
@@ -270,6 +282,7 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                   BusinessInfoCard(
                     business: _selectedBusiness!,
                     onClose: _deselectBusiness,
+                    onNavigate: _drawRoute,
                   ),
               ],
             ),
