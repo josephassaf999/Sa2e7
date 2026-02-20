@@ -13,7 +13,6 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   final Color primaryBlue = const Color(0xFF3C82F6);
-  final Color mintGreen = const Color(0xFF67D8C4);
   final Color darkBg = const Color(0xFF1A1A2E);
 
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -143,7 +142,7 @@ class _SettingsPageState extends State<SettingsPage> {
           'Notification Settings',
           style: TextStyle(color: Colors.white),
         ),
-        backgroundColor: primaryBlue,
+        backgroundColor: Colors.red,
       ),
       body:
           _isLoading
@@ -187,7 +186,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               Switch(
                                 value: _enableAllNotifications,
                                 onChanged: _toggleMasterSwitch,
-                                activeColor: mintGreen,
+                                activeColor: Colors.redAccent,
                               ),
                             ],
                           ),
@@ -213,7 +212,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                     _enableAllNotifications
                                         ? _toggleNewBusinessNotifications
                                         : null,
-                                activeColor: mintGreen,
+                                activeColor: Colors.redAccent,
                               ),
                             ),
                             const Divider(),
@@ -228,7 +227,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                     _enableAllNotifications
                                         ? _toggleHoursChangeNotifications
                                         : null,
-                                activeColor: mintGreen,
+                                activeColor: Colors.redAccent,
                               ),
                             ),
                           ],
@@ -259,7 +258,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                         _enableAllNotifications
                                             ? (_) => _toggleCategory(category)
                                             : null,
-                                    selectedColor: mintGreen.withOpacity(0.7),
+                                    selectedColor: Colors.redAccent.withOpacity(
+                                      0.7,
+                                    ),
                                     backgroundColor: Colors.grey[300],
                                     labelStyle: TextStyle(
                                       color:
@@ -368,7 +369,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         child: ElevatedButton(
                           onPressed: _saveSettings,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryBlue,
+                            backgroundColor: Colors.red,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
@@ -396,7 +397,7 @@ class _SettingsPageState extends State<SettingsPage> {
         title,
         style: Theme.of(context).textTheme.titleLarge?.copyWith(
           fontWeight: FontWeight.bold,
-          color: primaryBlue,
+          color: Colors.red,
         ),
       ),
     );
