@@ -5,9 +5,20 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'business_page.dart';
 
 class GoogleMapPage extends StatefulWidget {
-  const GoogleMapPage({super.key});
+  /// Optional: pass a business to auto-select and draw route on open
+  final LatLng? destination;
+  final Map<String, dynamic>? destinationData;
+  final String? destinationId;
+
+  const GoogleMapPage({
+    super.key,
+    this.destination,
+    this.destinationData,
+    this.destinationId,
+  });
 
   @override
   State<GoogleMapPage> createState() => _GoogleMapPageState();
@@ -30,7 +41,14 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
 
   // Category filter
   String selectedCategory = "All";
-  final List<String> categories = ["All","Night Life", "Historical", "Beach", "Food", "Cave"];
+  final List<String> categories = [
+    "All",
+    "Night Life",
+    "Historical",
+    "Beach",
+    "Food",
+    "Cave",
+  ];
 
   @override
   void initState() {
@@ -51,6 +69,19 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
       _locationGranted = true;
       _currentLocation = LatLng(position.latitude, position.longitude);
     });
+
+    // Auto-select destination if provided (coming from Directions button)
+    if (widget.destination != null &&
+        widget.destinationData != null &&
+        widget.destinationId != null) {
+      _onMarkerTapped(
+        widget.destinationId!,
+        widget.destinationData!,
+        widget.destination!,
+      );
+      await Future.delayed(const Duration(milliseconds: 500));
+      _drawRoute();
+    }
   }
 
   void _onMapCreated(GoogleMapController controller) {
@@ -63,7 +94,11 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
   }
 
   /* ---------------- SELECT BUSINESS ---------------- */
-  void _onMarkerTapped(Map<String, dynamic> business, LatLng position) {
+  void _onMarkerTapped(
+    String businessId,
+    Map<String, dynamic> business,
+    LatLng position,
+  ) {
     if (_currentLocation == null) return;
 
     final distance = Geolocator.distanceBetween(
@@ -73,15 +108,41 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
       position.longitude,
     );
 
-    final eta = Duration(
-      seconds: (distance / (50 * 1000 / 3600)).round(),
-    );
+    final eta = Duration(seconds: (distance / (50 * 1000 / 3600)).round());
+
+    // Get opening hours for today
+    String displayHours;
+    final openingHours = business['openingHours'];
+    if (openingHours is Map) {
+      const weekdays = [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
+      ];
+      final todayKey = weekdays[DateTime.now().weekday - 1];
+      final todayHours = openingHours[todayKey];
+      if (todayHours != null &&
+          todayHours['open'] != null &&
+          todayHours['close'] != null) {
+        displayHours = '${todayHours['open']} - ${todayHours['close']}';
+      } else {
+        displayHours = 'Closed today';
+      }
+    } else {
+      displayHours = 'Hours not available';
+    }
 
     setState(() {
       _selectedBusiness = {
         ...business,
+        'id': businessId,
         'distance': distance,
         'eta': eta,
+        'displayHours': displayHours,
       };
 
       _polylineCoordinates.clear();
@@ -94,9 +155,7 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
       );
       _markers.add(_selectedMarker!);
 
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLng(position),
-      );
+      _mapController?.animateCamera(CameraUpdate.newLatLng(position));
     });
   }
 
@@ -137,9 +196,9 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
       }
       setState(() {});
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to get route')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Unable to get route')));
     }
   }
 
@@ -147,9 +206,7 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
   @override
   Widget build(BuildContext context) {
     if (!_locationGranted || _currentLocation == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -175,7 +232,9 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                   selected: isSelected,
                   selectedColor: primaryRed,
                   backgroundColor: Colors.grey.shade200,
-                  labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black),
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black,
+                  ),
                   onSelected: (_) => setState(() => selectedCategory = cat),
                 );
               },
@@ -187,33 +246,50 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
             child: Stack(
               children: [
                 StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance.collection('businesses').snapshots(),
+                  stream:
+                      FirebaseFirestore.instance
+                          .collection('businesses')
+                          .snapshots(),
                   builder: (context, snapshot) {
-                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                    if (!snapshot.hasData)
+                      return const Center(child: CircularProgressIndicator());
 
                     final businessDocs = snapshot.data!.docs;
-                    final Set<Marker> businessMarkers = businessDocs.map((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      final loc = data['location'];
-                      if (loc == null) return null;
+                    final Set<Marker> businessMarkers =
+                        businessDocs
+                            .map((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              final loc = data['location'];
+                              if (loc is! GeoPoint) return null;
 
-                      // Filter by category
-                      final category = data['category'] ?? 'All';
-                      if (selectedCategory != 'All' && category != selectedCategory) return null;
+                              // Filter by category
+                              final category = data['category'] ?? 'All';
+                              if (selectedCategory != 'All' &&
+                                  category != selectedCategory)
+                                return null;
 
-                      return Marker(
-                        markerId: MarkerId(doc.id),
-                        position: LatLng(loc['lat'], loc['lng']),
-                        onTap: () => _onMarkerTapped(data, LatLng(loc['lat'], loc['lng'])),
-                        infoWindow: InfoWindow(
-                          title: data['name'] ?? 'Business',
-                          snippet: category,
-                        ),
-                      );
-                    }).whereType<Marker>().toSet();
+                              final position = LatLng(
+                                loc.latitude,
+                                loc.longitude,
+                              );
+                              return Marker(
+                                markerId: MarkerId(doc.id),
+                                position: position,
+                                onTap:
+                                    () =>
+                                        _onMarkerTapped(doc.id, data, position),
+                                infoWindow: InfoWindow(
+                                  title: data['name'] ?? 'Business',
+                                  snippet: category,
+                                ),
+                              );
+                            })
+                            .whereType<Marker>()
+                            .toSet();
 
                     final allMarkers = {...businessMarkers};
-                    if (_selectedMarker != null) allMarkers.add(_selectedMarker!);
+                    if (_selectedMarker != null)
+                      allMarkers.add(_selectedMarker!);
 
                     return GoogleMap(
                       onMapCreated: _onMapCreated,
@@ -276,7 +352,25 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                                     ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.close, color: Colors.red),
+                                    icon: const Icon(Icons.info_outline),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (context) => BusinessDetailsPage(
+                                                businessId:
+                                                    _selectedBusiness!['id'],
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.close,
+                                      color: Colors.red,
+                                    ),
                                     onPressed: _deselectBusiness,
                                   ),
                                 ],
@@ -287,7 +381,11 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                               if (_selectedBusiness!['category'] != null)
                                 Row(
                                   children: [
-                                    const Icon(Icons.category, size: 20, color: Colors.grey),
+                                    const Icon(
+                                      Icons.category,
+                                      size: 20,
+                                      color: Colors.grey,
+                                    ),
                                     const SizedBox(width: 6),
                                     Text(_selectedBusiness!['category']),
                                   ],
@@ -297,9 +395,13 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                               if (_selectedBusiness!['openingHours'] != null)
                                 Row(
                                   children: [
-                                    const Icon(Icons.access_time, size: 20, color: Colors.grey),
+                                    const Icon(
+                                      Icons.access_time,
+                                      size: 20,
+                                      color: Colors.grey,
+                                    ),
                                     const SizedBox(width: 6),
-                                    Text(_selectedBusiness!['openingHours']),
+                                    Text(_selectedBusiness!['displayHours']),
                                   ],
                                 ),
 
@@ -307,9 +409,15 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                               if (_selectedBusiness!['avgRating'] != null)
                                 Row(
                                   children: [
-                                    const Icon(Icons.star, size: 20, color: Colors.amber),
+                                    const Icon(
+                                      Icons.star,
+                                      size: 20,
+                                      color: Colors.amber,
+                                    ),
                                     const SizedBox(width: 6),
-                                    Text('${_selectedBusiness!['avgRating']} ⭐'),
+                                    Text(
+                                      '${(_selectedBusiness!['avgRating'] as num).toStringAsFixed(1)} ⭐',
+                                    ),
                                   ],
                                 ),
 
@@ -318,11 +426,15 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                                   _selectedBusiness!['eta'] != null)
                                 Row(
                                   children: [
-                                    const Icon(Icons.directions, size: 20, color: Colors.grey),
+                                    const Icon(
+                                      Icons.directions,
+                                      size: 20,
+                                      color: Colors.grey,
+                                    ),
                                     const SizedBox(width: 6),
                                     Text(
                                       '${(_selectedBusiness!['distance'] / 1000).toStringAsFixed(2)} km, '
-                                          '${_selectedBusiness!['eta'].inMinutes} min',
+                                      '${_selectedBusiness!['eta'].inMinutes} min',
                                     ),
                                   ],
                                 ),
@@ -331,13 +443,22 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
 
                               // Buttons row
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
                                 children: [
                                   ElevatedButton.icon(
                                     onPressed: _drawRoute,
-                                    icon: const Icon(Icons.navigation, color: Colors.white),
-                                    label: const Text("Navigate",style: TextStyle(color: Colors.white),),
-                                    style: ElevatedButton.styleFrom(backgroundColor: primaryRed),
+                                    icon: const Icon(
+                                      Icons.navigation,
+                                      color: Colors.white,
+                                    ),
+                                    label: const Text(
+                                      "Navigate",
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: primaryRed,
+                                    ),
                                   ),
                                   if (_selectedBusiness!['phone'] != null)
                                     ElevatedButton.icon(
@@ -348,9 +469,17 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                                         );
                                         launchUrl(launchUri);
                                       },
-                                      icon: const Icon(Icons.phone, color: Colors.white),
-                                      label: const Text("Call",style: TextStyle(color: Colors.white),),
-                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                                      icon: const Icon(
+                                        Icons.phone,
+                                        color: Colors.white,
+                                      ),
+                                      label: const Text(
+                                        "Call",
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                      ),
                                     ),
                                 ],
                               ),
@@ -359,7 +488,7 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                         ),
                       ),
                     ),
-                  )
+                  ),
               ],
             ),
           ),
