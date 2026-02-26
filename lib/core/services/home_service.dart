@@ -41,7 +41,8 @@ class HomeService {
   // ─── TOGGLE FAVORITE ──────────────────────────────────────────────────────────
   static Future<void> toggleFavorite(String businessId) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw 'User not logged in';
+    if (user == null)
+      throw Exception('User not logged in. Please login to manage favorites.');
 
     final userRef = FirebaseFirestore.instance
         .collection('Users')

@@ -1,7 +1,4 @@
-// ignore_for_file: unused_import
-
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -199,7 +196,7 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
     final avgRating = (businessData!['avgRating'] ?? 0.0).toDouble();
     final numRatings = businessData!['numRatings'] ?? 0;
 
-    // FIX: handle both GeoPoint and Map {lat, lng}
+    // Extract LatLng from GeoPoint or Map {lat, lng}
     final LatLng? businessLatLng = _extractLatLng(businessData!['location']);
 
     // Fix Instagram URL

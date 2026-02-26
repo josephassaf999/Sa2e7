@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:sa2e7/firebase/firebase_config.dart';
 
 /// Service layer for AddBusinessPage - Firebase operations
 class AddBusinessService {
@@ -10,10 +11,11 @@ class AddBusinessService {
   static Future<List<String>> uploadImages(List<File> selectedImages) async {
     final List<String> uploadedImageUrls = [];
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw 'Not logged in';
+    if (user == null)
+      throw Exception('User not logged in. Please login to upload images.');
 
     final storage = FirebaseStorage.instanceFor(
-      bucket: 'sa2e7-database.firebasestorage.app',
+      bucket: FirebaseConfig.storageBucket,
     );
 
     for (int i = 0; i < selectedImages.length; i++) {
@@ -47,7 +49,8 @@ class AddBusinessService {
     required Map<String, Map<String, String?>> openingHours,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw 'User not logged in';
+    if (user == null)
+      throw Exception('User not logged in. Cannot save business.');
 
     await FirebaseFirestore.instance.collection('businesses').add({
       'name': name.trim(),

@@ -84,7 +84,8 @@ class BusinessService {
   /// Toggle favorite status for a business
   static Future<void> toggleFavorite(String businessId) async {
     final user = _auth.currentUser;
-    if (user == null) throw Exception("User not logged in");
+    if (user == null)
+      throw Exception('User not logged in. Please login to add favorites.');
 
     final userRef = _firestore.collection('Users').doc(user.uid);
     final isFavorite = await checkIfFavorite(businessId);
@@ -129,14 +130,15 @@ class BusinessService {
     String text,
   ) async {
     if (text.trim().isEmpty) {
-      throw Exception("Review text cannot be empty");
+      throw Exception('Review text cannot be empty. Please write a review.');
     }
 
     final user = _auth.currentUser;
-    if (user == null) throw Exception("User not logged in");
+    if (user == null)
+      throw Exception('User not logged in. Please login to submit a review.');
 
     final userName =
-        user.displayName?.isNotEmpty == true
+        (user.displayName?.isNotEmpty ?? false)
             ? user.displayName!
             : (user.email?.split('@').first ?? 'Anonymous');
 

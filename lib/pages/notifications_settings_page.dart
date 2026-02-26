@@ -1,13 +1,10 @@
-// ignore_for_file: use_super_parameters, deprecated_member_use
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sa2e7/core/services/notification_service.dart';
-import 'package:sa2e7/firebase/fcm_notification_handler.dart';
 import 'package:sa2e7/core/utils/notification_constants.dart';
 
 class NotificationsSettingsPage extends StatefulWidget {
-  const NotificationsSettingsPage({Key? key}) : super(key: key);
+  const NotificationsSettingsPage({super.key});
 
   @override
   State<NotificationsSettingsPage> createState() =>
@@ -22,13 +19,11 @@ class _NotificationsSettingsPageState extends State<NotificationsSettingsPage> {
 
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final NotificationService _notificationService = NotificationService();
-  final FCMNotificationHandler _fcmHandler = FCMNotificationHandler();
 
   bool _enableAllNotifications = true;
   bool _enableNewBusinessNotifications = true;
   bool _enableHoursChangeNotifications = true;
   List<String> _selectedCategories = [];
-  String _fcmToken = '';
 
   @override
   void initState() {
@@ -46,7 +41,6 @@ class _NotificationsSettingsPageState extends State<NotificationsSettingsPage> {
       final settings = await _notificationService.getNotificationSettings(
         userId,
       );
-      final token = await _fcmHandler.getFCMToken();
       setState(() {
         _selectedCategories = categories;
         _enableNewBusinessNotifications =
@@ -55,10 +49,6 @@ class _NotificationsSettingsPageState extends State<NotificationsSettingsPage> {
             settings['hoursChangeNotifications'] ?? true;
         _enableAllNotifications =
             _enableNewBusinessNotifications && _enableHoursChangeNotifications;
-        _fcmToken =
-            token.isNotEmpty
-                ? '${token.substring(0, 20)}...'
-                : 'No token available';
       });
     } catch (e) {
       debugPrint('Error loading settings: $e');
