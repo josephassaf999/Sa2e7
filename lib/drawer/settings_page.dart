@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
-import 'package:sa2e7/core/services/notification_service.dart';
-
-import 'package:sa2e7/firebase/fcm_notification_handler.dart';
 import 'package:sa2e7/pages/notifications_page.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -14,21 +10,13 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  // Color definitions
   final Color primaryBlue = const Color(0xFF3C82F6);
   final Color mintGreen = const Color(0xFF67D8C4);
   final Color darkBg = const Color(0xFF1A1A2E);
 
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  final NotificationService _notificationService = NotificationService();
-  final FCMNotificationHandler _fcmHandler = FCMNotificationHandler();
-
   // State variables for settings
-  List<String> _selectedCategories = [];
-  bool _enableNewBusinessNotifications = true;
-  bool _enableHoursChangeNotifications = true;
-  bool _enableAllNotifications = true;
-  String _fcmToken = '';
-  bool _isLoading = true;
+  // (Other settings are managed in NotificationsPage)
 
   // ...existing code...
 
@@ -39,40 +27,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadSettings() async {
-    final userId = _firebaseAuth.currentUser?.uid;
-    if (userId == null) {
-      // Not logged in — stop spinner and show empty state
-      if (mounted) setState(() => _isLoading = false);
-      return;
-    }
-
-    try {
-      final categories = await _notificationService.getPreferredCategories(
-        userId,
-      );
-      final settings = await _notificationService.getNotificationSettings(
-        userId,
-      );
-      final token = await _fcmHandler.getFCMToken();
-
-      setState(() {
-        _selectedCategories = categories;
-        _enableNewBusinessNotifications =
-            settings['newBusinessNotifications'] ?? true;
-        _enableHoursChangeNotifications =
-            settings['hoursChangeNotifications'] ?? true;
-        _enableAllNotifications =
-            _enableNewBusinessNotifications && _enableHoursChangeNotifications;
-        _fcmToken =
-            token.isNotEmpty
-                ? '${token.substring(0, 20)}...'
-                : 'No token available';
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading settings: $e');
-      setState(() => _isLoading = false);
-    }
+    // Settings are managed in NotificationsPage
   }
 
   // ...existing code...
@@ -99,8 +54,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 onChanged: (value) {
                   // This assumes you have a theme provider or similar mechanism
                   // Replace this with your actual theme switching logic
-                  final brightness = value ? Brightness.dark : Brightness.light;
-                  // Example: MyThemeProvider.of(context).setBrightness(brightness);
+                  // Example: MyThemeProvider.of(context).setBrightness(value ? Brightness.dark : Brightness.light);
                   // For demonstration, show a snackbar
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(

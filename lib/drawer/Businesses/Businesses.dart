@@ -3,6 +3,7 @@ import 'package:sa2e7/drawer/Businesses/BusinessEditPage.dart';
 import 'package:sa2e7/pages/business_page.dart';
 import 'package:sa2e7/core/services/business_management_service.dart';
 import 'package:sa2e7/core/utils/business_management_utils.dart';
+import 'package:sa2e7/welcome/auth_page.dart';
 
 class YourListingsPage extends StatefulWidget {
   const YourListingsPage({super.key});
@@ -16,6 +17,18 @@ class _YourListingsPageState extends State<YourListingsPage> {
   @override
   void initState() {
     super.initState();
+    _checkAuthentication();
+  }
+
+  void _checkAuthentication() {
+    final user = BusinessManagementService.getCurrentUser();
+    if (user == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => const AuthPage()));
+      });
+    }
   }
 
   // ─── DELETE BUSINESS ────────────────────────────────────────────────────────
@@ -55,7 +68,7 @@ class _YourListingsPageState extends State<YourListingsPage> {
   @override
   Widget build(BuildContext context) {
     final user = BusinessManagementService.getCurrentUser();
-    if (user == null) return const Center(child: Text("Not logged in"));
+    if (user == null) return const SizedBox.expand();
 
     return Scaffold(
       appBar: AppBar(
