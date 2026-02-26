@@ -187,61 +187,160 @@ class _HomePageState extends State<HomePage> {
       ),
       drawer: Drawer(
         child: ListView(
+          padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: BoxDecoration(color: HomeUIConstants.primaryRed),
+              decoration: BoxDecoration(
+                color: HomeUIConstants.primaryRed,
+                boxShadow: [
+                  BoxShadow(
+                    color: HomeUIConstants.primaryRed.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    currentUserName != null
-                        ? 'Welcome, $currentUserName'
-                        : 'Welcome',
-                    style: const TextStyle(color: Colors.white, fontSize: 20),
-                  ),
-                  const SizedBox(height: 8),
-                  currentUserName == null
-                      ? ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: HomeUIConstants.accentWhite,
-                          foregroundColor: HomeUIConstants.primaryRed,
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: Colors.white.withOpacity(0.3),
+                        radius: 24,
+                        child: const Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 28,
                         ),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.push(context, Nav.go(const AuthPage()));
-                        },
-                        child: const Text('Login / Register'),
-                      )
-                      : ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: HomeUIConstants.accentWhite,
-                          foregroundColor: HomeUIConstants.primaryRed,
-                        ),
-                        onPressed: () async {
-                          await FirebaseAuth.instance.signOut();
-                        },
-                        child: const Text('Logout'),
                       ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              currentUserName ?? 'Guest',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              currentUserName != null
+                                  ? 'Welcome back!'
+                                  : 'Not logged in',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.8),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(
+                    width: double.infinity,
+                    child:
+                        currentUserName == null
+                            ? ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: HomeUIConstants.primaryRed,
+                                elevation: 2,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  Nav.go(const AuthPage()),
+                                );
+                              },
+                              child: const Text(
+                                'Login / Register',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            )
+                            : ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
+                                side: const BorderSide(
+                                  color: Colors.white,
+                                  width: 1.5,
+                                ),
+                              ),
+                              onPressed: () async {
+                                await FirebaseAuth.instance.signOut();
+                                if (mounted) Navigator.pop(context);
+                              },
+                              child: const Text(
+                                'Logout',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                  ),
                 ],
               ),
             ),
+            const SizedBox(height: 8),
             ListTile(
               leading: Icon(Icons.person, color: HomeUIConstants.primaryRed),
               title: const Text('Profile'),
-              onTap: () => Navigator.push(context, Nav.go(const ProfilePage())),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 8,
+              ),
+              hoverColor: HomeUIConstants.primaryRed.withOpacity(0.08),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, Nav.go(const ProfilePage()));
+              },
             ),
             ListTile(
               leading: Icon(Icons.store, color: HomeUIConstants.primaryRed),
               title: const Text('Your businesses'),
-              onTap:
-                  () =>
-                      Navigator.push(context, Nav.go(const YourListingsPage())),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 8,
+              ),
+              hoverColor: HomeUIConstants.primaryRed.withOpacity(0.08),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, Nav.go(const YourListingsPage()));
+              },
+            ),
+            Divider(
+              height: 24,
+              indent: 24,
+              endIndent: 24,
+              color: Colors.grey.withOpacity(0.3),
             ),
             ListTile(
               leading: Icon(Icons.settings, color: HomeUIConstants.primaryRed),
               title: const Text('Settings'),
-              onTap:
-                  () => Navigator.push(context, Nav.go(const SettingsPage())),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 8,
+              ),
+              hoverColor: HomeUIConstants.primaryRed.withOpacity(0.08),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, Nav.go(const SettingsPage()));
+              },
             ),
           ],
         ),

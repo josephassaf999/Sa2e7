@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:sa2e7/main.dart';
 import 'package:sa2e7/pages/notifications_page.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -11,9 +13,8 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   // Color definitions
-  final Color primaryBlue = const Color(0xFF3C82F6);
-  final Color mintGreen = const Color(0xFF67D8C4);
-  final Color darkBg = const Color(0xFF1A1A2E);
+  final Color primaryRed = const Color(0xFFD7141A);
+  final Color primaryGreen = const Color(0xFF006B3C);
 
   // State variables for settings
   // (Other settings are managed in NotificationsPage)
@@ -40,29 +41,25 @@ class _SettingsPageState extends State<SettingsPage> {
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text('Settings', style: TextStyle(color: Colors.white)),
-        backgroundColor: primaryBlue,
+        backgroundColor: primaryRed,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Card(
             child: ListTile(
-              leading: Icon(Icons.brightness_6, color: primaryBlue),
+              leading: Icon(Icons.brightness_6, color: primaryRed),
               title: const Text('Dark Mode'),
               trailing: Switch(
                 value: isDarkMode,
-                onChanged: (value) {
-                  // This assumes you have a theme provider or similar mechanism
-                  // Replace this with your actual theme switching logic
-                  // Example: MyThemeProvider.of(context).setBrightness(value ? Brightness.dark : Brightness.light);
-                  // For demonstration, show a snackbar
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Theme switching not implemented. Implement your theme logic.',
-                      ),
-                    ),
-                  );
+                onChanged: (value) async {
+                  // Update the theme
+                  themeNotifier.value =
+                      value ? ThemeMode.dark : ThemeMode.light;
+
+                  // Save preference
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('isDarkMode', value);
                 },
               ),
             ),
@@ -70,7 +67,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 12),
           Card(
             child: ListTile(
-              leading: Icon(Icons.notifications, color: primaryBlue),
+              leading: Icon(Icons.notifications, color: primaryRed),
               title: const Text('Notification Settings'),
               subtitle: const Text('Manage notification preferences'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),

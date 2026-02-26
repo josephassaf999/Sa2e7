@@ -77,7 +77,7 @@ class _YourListingsPageState extends State<YourListingsPage> {
           BusinessManagementUIConstants.yourListingsTitle,
           style: TextStyle(color: Colors.white),
         ),
-        backgroundColor: const Color(0xFFF63C3C),
+        backgroundColor: const Color(0xFFD7141A),
       ),
       body: StreamBuilder(
         stream: BusinessManagementService.getUserBusinesses(),

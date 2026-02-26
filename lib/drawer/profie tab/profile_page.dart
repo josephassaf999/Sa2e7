@@ -10,7 +10,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final Color primaryBlue = const Color(0xFF3C82F6);
+  final Color primaryBlue = const Color(0xFFD7141A);
   late AuthService _authService;
   User? _currentUser;
 
