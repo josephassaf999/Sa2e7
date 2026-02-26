@@ -103,7 +103,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    void _openFilterSheet() {
+    void openFilterSheet() {
       showModalBottomSheet(
         context: context,
         builder: (context) {
@@ -278,7 +278,7 @@ class _HomePageState extends State<HomePage> {
                   IconButton(
                     icon: const Icon(Icons.filter_alt),
                     tooltip: 'Filters',
-                    onPressed: _openFilterSheet,
+                    onPressed: openFilterSheet,
                   ),
                 ],
               ),

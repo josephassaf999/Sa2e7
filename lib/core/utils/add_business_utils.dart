@@ -23,7 +23,7 @@ class AddBusinessUIConstants {
     "Historical",
     "Beach",
     "Food",
-    "Cave",
+    "Religious",
   ];
 
   // Weekdays

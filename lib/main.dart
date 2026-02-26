@@ -27,7 +27,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  MyApp({super.key});
+  const MyApp({super.key});
 
   // Check if it's the first time the user opens the app
   Future<bool> _checkFirstTime() async {
