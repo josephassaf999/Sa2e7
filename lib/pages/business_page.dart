@@ -2,9 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'map.dart';
+import 'package:sa2e7/core/themes/design_tokens.dart';
 import 'package:sa2e7/core/widgets/review_dialog.dart';
 import 'package:sa2e7/core/utils/business_utils.dart';
+import 'package:sa2e7/core/utils/location_utils.dart';
 import 'package:sa2e7/core/services/business_service.dart';
 
 class BusinessDetailsPage extends StatefulWidget {
@@ -24,9 +27,6 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
   int _currentImageIndex = 0;
   final PageController _imagePageController = PageController();
 
-  final Color primaryRed = const Color(0xFFD7141A);
-  final Color primaryGreen = const Color(0xFF006B3C);
-
   @override
   void initState() {
     super.initState();
@@ -42,10 +42,15 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
   Future<void> _loadBusiness() async {
     final data = await BusinessService.loadBusiness(widget.businessId);
     if (data != null) {
-      final distance = await BusinessService.calculateDistance(
-        data['location'],
-      );
-      final favorite = await BusinessService.checkIfFavorite(widget.businessId);
+      // Parallelize distance calculation and favorite check using Future.wait
+      final results = await Future.wait([
+        BusinessService.calculateDistance(data['location']),
+        BusinessService.checkIfFavorite(widget.businessId),
+      ]);
+
+      final distance = results[0] as double?;
+      final favorite = results[1] as bool;
+
       if (mounted) {
         setState(() {
           businessData = data;
@@ -114,30 +119,14 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
   void _showAddReviewDialog() {
     ReviewDialog.show(
       context: context,
-      primaryRed: primaryRed,
+      primaryRed: DesignTokens.primaryRed,
       onSubmit: (rating, text) => _submitReview(rating, text),
     );
   }
 
-  // Extract LatLng from GeoPoint or Map {lat, lng}
-  LatLng? _extractLatLng(dynamic rawLocation) {
-    if (rawLocation == null) return null;
-    if (rawLocation is GeoPoint) {
-      return LatLng(rawLocation.latitude, rawLocation.longitude);
-    }
-    if (rawLocation is Map) {
-      final lat = rawLocation['lat'];
-      final lng = rawLocation['lng'];
-      if (lat != null && lng != null) {
-        return LatLng((lat as num).toDouble(), (lng as num).toDouble());
-      }
-    }
-    return null;
-  }
-
   // ─── SECTION TITLE ───────────────────────────────────────────────────────────
   Widget _sectionTitle(String title) =>
-      BusinessUIUtils.sectionTitle(title, primaryRed);
+      BusinessUIUtils.sectionTitle(title, DesignTokens.primaryRed);
 
   // ─── RATING STARS ────────────────────────────────────────────────────────────
   Widget _buildRatingStars(double rating, {double size = 18}) =>
@@ -145,7 +134,7 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
 
   // ─── OPENING HOURS ───────────────────────────────────────────────────────────
   Widget _buildOpeningHours(Map<String, dynamic> hours) =>
-      BusinessUIUtils.buildOpeningHours(hours, primaryRed);
+      BusinessUIUtils.buildOpeningHours(hours, DesignTokens.primaryRed);
 
   // ─── ACTION BUTTON ───────────────────────────────────────────────────────────
   Widget _actionButton({
@@ -158,7 +147,7 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
     icon: icon,
     label: label,
     onTap: onTap,
-    color: color ?? primaryRed,
+    color: color ?? DesignTokens.primaryRed,
     filled: filled,
   );
 
@@ -170,7 +159,7 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
   Widget build(BuildContext context) {
     if (isLoading) {
       return Scaffold(
-        appBar: AppBar(backgroundColor: primaryRed),
+        appBar: AppBar(backgroundColor: DesignTokens.primaryRed),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -178,7 +167,7 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
     if (businessData == null) {
       return Scaffold(
         appBar: AppBar(
-          backgroundColor: primaryRed,
+          backgroundColor: DesignTokens.primaryRed,
           iconTheme: const IconThemeData(color: Colors.white),
         ),
         body: const Center(child: Text("Business not found.")),
@@ -197,7 +186,7 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
     final numRatings = businessData!['numRatings'] ?? 0;
 
     // Extract LatLng from GeoPoint or Map {lat, lng}
-    final LatLng? businessLatLng = _extractLatLng(businessData!['location']);
+    final LatLng? businessLatLng = LocationUtils.extractLatLng(businessData!['location']);
 
     // Fix Instagram URL
     String instagramUrl = '';
@@ -216,7 +205,7 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
             iconTheme: const IconThemeData(color: Colors.white),
             expandedHeight: 280,
             pinned: true,
-            backgroundColor: primaryRed,
+            backgroundColor: DesignTokens.primaryRed,
             actions: [
               IconButton(
                 icon: Icon(
@@ -252,20 +241,32 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
                             onPageChanged:
                                 (i) => setState(() => _currentImageIndex = i),
                             itemBuilder: (context, index) {
-                              return Image.network(
-                                images[index],
-                                fit: BoxFit.cover,
-                                errorBuilder:
-                                    (_, __, ___) => const ColoredBox(
-                                      color: Color(0xFFE0E0E0),
-                                      child: Center(
-                                        child: Icon(
-                                          Icons.broken_image,
-                                          size: 60,
-                                          color: Colors.grey,
+                              return Hero(
+                                tag: index == 0
+                                    ? 'business_image_${widget.businessId}'
+                                    : 'business_image_${widget.businessId}_$index',
+                                child: CachedNetworkImage(
+                                  imageUrl: images[index],
+                                  fit: BoxFit.cover,
+                                  placeholder:
+                                      (context, url) => const ColoredBox(
+                                        color: Color(0xFFE0E0E0),
+                                        child: Center(
+                                          child: CircularProgressIndicator(),
                                         ),
                                       ),
-                                    ),
+                                  errorWidget:
+                                      (context, url, error) => const ColoredBox(
+                                        color: Color(0xFFE0E0E0),
+                                        child: Center(
+                                          child: Icon(
+                                            Icons.broken_image,
+                                            size: 60,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ),
+                                ),
                               );
                             },
                           ),
@@ -344,16 +345,16 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: primaryRed.withOpacity(0.1),
+                          color: DesignTokens.primaryRed.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: primaryRed.withOpacity(0.25),
+                            color: DesignTokens.primaryRed.withOpacity(0.25),
                           ),
                         ),
                         child: Text(
                           category,
                           style: TextStyle(
-                            color: primaryRed,
+                            color: DesignTokens.primaryRed,
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
                           ),
@@ -446,7 +447,7 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
                         _actionButton(
                           icon: Icons.phone,
                           label: "Call",
-                          color: primaryGreen,
+                          color: DesignTokens.primaryGreen,
                           onTap: () => _launchExternal("tel:$phone"),
                         ),
                       if (instagramUrl.isNotEmpty)
@@ -486,13 +487,13 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
                           Icon(
                             Icons.phone_outlined,
                             size: 18,
-                            color: primaryGreen,
+                            color: DesignTokens.primaryGreen,
                           ),
                           const SizedBox(width: 8),
                           Text(
                             phone,
                             style: TextStyle(
-                              color: primaryGreen,
+                              color: DesignTokens.primaryGreen,
                               fontWeight: FontWeight.w500,
                               fontSize: 15,
                               decoration: TextDecoration.underline,
@@ -585,13 +586,13 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: _showAddReviewDialog,
-                      icon: Icon(Icons.edit_outlined, color: primaryRed),
+                      icon: Icon(Icons.edit_outlined, color: DesignTokens.primaryRed),
                       label: Text(
                         "Write a Review",
-                        style: TextStyle(color: primaryRed),
+                        style: TextStyle(color: DesignTokens.primaryRed),
                       ),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: primaryRed.withOpacity(0.4)),
+                        side: BorderSide(color: DesignTokens.primaryRed.withOpacity(0.4)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -664,7 +665,7 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
                                   children: [
                                     CircleAvatar(
                                       radius: 18,
-                                      backgroundColor: primaryRed.withOpacity(
+                                      backgroundColor: DesignTokens.primaryRed.withOpacity(
                                         0.12,
                                       ),
                                       child: Text(
@@ -672,7 +673,7 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
                                             ? userName[0].toUpperCase()
                                             : '?',
                                         style: TextStyle(
-                                          color: primaryRed,
+                                          color: DesignTokens.primaryRed,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),

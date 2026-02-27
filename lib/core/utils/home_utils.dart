@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 /// UI utilities and constants for HomePage
 class HomeUIConstants {
@@ -16,6 +18,21 @@ class HomeUIConstants {
     "Food",
     "Religious",
   ];
+
+  // Category emojis
+  static const Map<String, String> categoryEmojis = {
+    "All": "🌍",
+    "Night Life": "🌃",
+    "Historical": "🏛️",
+    "Beach": "🏖️",
+    "Food": "🍽️",
+    "Religious": "🕌",
+  };
+
+  // Get emoji for a category
+  static String getEmojiForCategory(String category) {
+    return categoryEmojis[category] ?? "📍";
+  }
 
   // String constants
   static const String appTitle = "Sa2e7";
@@ -77,9 +94,10 @@ class HomeUIUtils {
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final category = HomeUIConstants.categories[index];
+          final emoji = HomeUIConstants.getEmojiForCategory(category);
           final isSelected = selectedCategory == category;
           return ChoiceChip(
-            label: Text(category),
+            label: Text('$emoji $category'),
             selected: isSelected,
             selectedColor: HomeUIConstants.primaryRed,
             backgroundColor: Colors.grey.shade200,
@@ -113,10 +131,28 @@ class HomeUIUtils {
           child: Stack(
             children: [
               Positioned.fill(
-                child:
-                    imageUrl.startsWith('assets/')
-                        ? Image.asset(imageUrl, fit: BoxFit.cover)
-                        : Image.network(imageUrl, fit: BoxFit.cover),
+                child: Hero(
+                  tag: 'business_image_$businessId',
+                  child:
+                      imageUrl.startsWith('assets/')
+                          ? Image.asset(imageUrl, fit: BoxFit.cover)
+                          : CachedNetworkImage(
+                            imageUrl: imageUrl,
+                            fit: BoxFit.cover,
+                            placeholder:
+                                (context, url) => Container(
+                                  color: Colors.grey.shade300,
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                ),
+                            errorWidget:
+                                (context, url, error) => Container(
+                                  color: Colors.grey.shade300,
+                                  child: const Icon(Icons.error_outline),
+                                ),
+                          ),
+                ),
               ),
               Align(
                 alignment: Alignment.bottomLeft,

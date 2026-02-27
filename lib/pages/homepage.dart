@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:sa2e7/drawer/Businesses/Businesses.dart';
 import 'package:sa2e7/pages/business_page.dart';
+import 'package:sa2e7/pages/messages_page.dart';
+import 'package:sa2e7/core/themes/design_tokens.dart';
 import '../drawer/profie tab/profile_page.dart';
 import '../drawer/settings_page.dart';
 import '../core/utils/nav_transition.dart';
@@ -29,11 +31,19 @@ class _HomePageState extends State<HomePage> {
   String? currentUserName;
   Set<String> _favorites = {};
 
+  // Pagination state
+  List<QueryDocumentSnapshot> _allLoadedBusinesses = [];
+  DocumentSnapshot? _lastDocument;
+  bool _isLoadingMore = false;
+  bool _hasMoreData = true;
+  final int _pageSize = 20;
+
   @override
   void initState() {
     super.initState();
     _loadUserName();
     _loadFavorites();
+    _loadMoreBusinesses(); // Load first page
 
     FirebaseAuth.instance.authStateChanges().listen((user) {
       if (!mounted) return;
@@ -98,7 +108,129 @@ class _HomePageState extends State<HomePage> {
   Future<void> _refreshBusinesses() async {
     await HomeService.refreshBusinesses();
     if (!mounted) return;
-    setState(() {});
+    setState(() {
+      _allLoadedBusinesses = [];
+      _lastDocument = null;
+      _hasMoreData = true;
+    });
+  }
+
+  Future<void> _loadMoreBusinesses() async {
+    if (_isLoadingMore || !_hasMoreData) return;
+
+    setState(() => _isLoadingMore = true);
+
+    try {
+      Query query = FirebaseFirestore.instance
+          .collection('businesses')
+          .orderBy('createdAt', descending: true)
+          .limit(_pageSize);
+
+      if (_lastDocument != null) {
+        query = query.startAfter([_lastDocument!['createdAt']]);
+      }
+
+      final snapshot = await query.get();
+
+      if (snapshot.docs.isEmpty) {
+        setState(() {
+          _hasMoreData = false;
+          _isLoadingMore = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _allLoadedBusinesses.addAll(snapshot.docs);
+        _lastDocument = snapshot.docs.last;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading more: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildBusinessesList() {
+    if (_allLoadedBusinesses.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Client-side filtering
+    var filteredBusinesses = _allLoadedBusinesses.where((doc) {
+      final category = doc['category'] ?? 'All';
+      final name = doc['name'] ?? '';
+      final matchesCategory =
+          _selectedCategory == "All" || category == _selectedCategory;
+      final matchesSearch = _searchQuery.isEmpty ||
+          name.toLowerCase().contains(_searchQuery.toLowerCase());
+      final matchesFavorite =
+          !_showOnlyFavorites || _favorites.contains(doc.id);
+      return matchesCategory && matchesSearch && matchesFavorite;
+    }).toList();
+
+    if (filteredBusinesses.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: Center(
+          child: Text(HomeUIConstants.noBusinessesFound),
+        ),
+      );
+    }
+
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          // Add "Load More" button at the end if there's more data
+          if (index == filteredBusinesses.length) {
+            if (_hasMoreData) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: _isLoadingMore
+                    ? const Center(child: CircularProgressIndicator())
+                    : ElevatedButton(
+                        onPressed: _loadMoreBusinesses,
+                        child: const Text('Load More'),
+                      ),
+              );
+            }
+            return const SizedBox.shrink();
+          }
+
+          final b = filteredBusinesses[index];
+          final images = List<String>.from(b['images'] ?? []);
+          final imageUrl = images.isNotEmpty
+              ? images[0]
+              : 'assets/image/default_business.png';
+          final businessId = b.id;
+
+          return HomeUIUtils.buildBusinessCard(
+            businessId: businessId,
+            name: b['name'] ?? '',
+            category: b['category'] ?? '',
+            imageUrl: imageUrl,
+            isFavorite: _favorites.contains(businessId),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BusinessDetailsPage(
+                    businessId: businessId,
+                  ),
+                ),
+              );
+            },
+            onFavoriteTapped: () => _toggleFavorite(businessId),
+          );
+        },
+        childCount: filteredBusinesses.length + (_hasMoreData ? 1 : 0),
+      ),
+    );
   }
 
   @override
@@ -158,17 +290,24 @@ class _HomePageState extends State<HomePage> {
             _isSearching
                 ? TextField(
                   autofocus: true,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
+                  style: TextStyle(
+                    color: Theme.of(context).appBarTheme.foregroundColor ?? Colors.white,
+                  ),
+                  decoration: InputDecoration(
                     hintText: "Search businesses...",
-                    hintStyle: TextStyle(color: Colors.white70),
+                    hintStyle: TextStyle(
+                      color: (Theme.of(context).appBarTheme.foregroundColor ?? Colors.white)
+                          .withOpacity(0.7),
+                    ),
                     border: InputBorder.none,
                   ),
                   onChanged: (value) => setState(() => _searchQuery = value),
                 )
-                : const Text(
+                : Text(
                   HomeUIConstants.appTitle,
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(
+                    color: Theme.of(context).appBarTheme.foregroundColor ?? Colors.white,
+                  ),
                 ),
         actions: [
           IconButton(
@@ -284,8 +423,32 @@ class _HomePageState extends State<HomePage> {
                                 ),
                               ),
                               onPressed: () async {
-                                await FirebaseAuth.instance.signOut();
-                                if (mounted) Navigator.pop(context);
+                                showDialog(
+                                  context: context,
+                                  builder: (dialogContext) => AlertDialog(
+                                    title: const Text('Logout?'),
+                                    content: const Text('Are you sure you want to logout?'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(dialogContext),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () async {
+                                          Navigator.pop(dialogContext);
+                                          await FirebaseAuth.instance.signOut();
+                                          if (mounted) Navigator.pop(context);
+                                        },
+                                        child: Text(
+                                          'Logout',
+                                          style: TextStyle(
+                                            color: Theme.of(context).colorScheme.error,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
                               },
                               child: const Text(
                                 'Logout',
@@ -323,6 +486,19 @@ class _HomePageState extends State<HomePage> {
                 Navigator.push(context, Nav.go(const YourListingsPage()));
               },
             ),
+            ListTile(
+              leading: Icon(Icons.chat_bubble_outline, color: HomeUIConstants.primaryRed),
+              title: const Text('Messages'),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 8,
+              ),
+              hoverColor: HomeUIConstants.primaryRed.withOpacity(0.08),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, Nav.go(const MessagesPage()));
+              },
+            ),
             Divider(
               height: 24,
               indent: 24,
@@ -348,121 +524,59 @@ class _HomePageState extends State<HomePage> {
       body: RefreshIndicator(
         onRefresh: _refreshBusinesses,
         color: HomeUIConstants.primaryRed,
-        child: SingleChildScrollView(
+        child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              HomeUIUtils.buildHeroSection(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const GoogleMapPage()),
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: HomeUIUtils.buildCategoryFilter(
-                      selectedCategory: _selectedCategory,
-                      onCategoryChanged: (category) {
-                        setState(() => _selectedCategory = category);
-                      },
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.filter_alt),
-                    tooltip: 'Filters',
-                    onPressed: openFilterSheet,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                HomeUIConstants.activitiesLabel,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              StreamBuilder<QuerySnapshot>(
-                stream:
-                    FirebaseFirestore.instance
-                        .collection('businesses')
-                        .orderBy('createdAt', descending: true)
-                        .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  var businesses = snapshot.data!.docs.toList();
-                  // Client-side filtering
-                  businesses =
-                      businesses.where((doc) {
-                        final category = doc['category'] ?? 'All';
-                        final name = doc['name'] ?? '';
-                        final matchesCategory =
-                            _selectedCategory == "All" ||
-                            category == _selectedCategory;
-                        final matchesSearch =
-                            _searchQuery.isEmpty ||
-                            name.toLowerCase().contains(
-                              _searchQuery.toLowerCase(),
-                            );
-                        final matchesFavorite =
-                            !_showOnlyFavorites || _favorites.contains(doc.id);
-                        return matchesCategory &&
-                            matchesSearch &&
-                            matchesFavorite;
-                      }).toList();
-
-                  if (businesses.isEmpty) {
-                    return const Center(
-                      child: Text(HomeUIConstants.noBusinessesFound),
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.all(16),
+              sliver: SliverToBoxAdapter(
+                child: HomeUIUtils.buildHeroSection(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const GoogleMapPage()),
                     );
-                  }
-
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: businesses.length,
-                    itemBuilder: (context, index) {
-                      final b = businesses[index];
-                      final images = List<String>.from(b['images'] ?? []);
-                      final imageUrl =
-                          images.isNotEmpty
-                              ? images[0]
-                              : 'assets/image/default_business.png';
-                      final businessId = b.id;
-
-                      return HomeUIUtils.buildBusinessCard(
-                        businessId: businessId,
-                        name: b['name'] ?? '',
-                        category: b['category'] ?? '',
-                        imageUrl: imageUrl,
-                        isFavorite: _favorites.contains(businessId),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (_) => BusinessDetailsPage(
-                                    businessId: businessId,
-                                  ),
-                            ),
-                          );
-                        },
-                        onFavoriteTapped: () => _toggleFavorite(businessId),
-                      );
-                    },
-                  );
-                },
+                  },
+                ),
               ),
-            ],
-          ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              sliver: SliverToBoxAdapter(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: HomeUIUtils.buildCategoryFilter(
+                        selectedCategory: _selectedCategory,
+                        onCategoryChanged: (category) {
+                          setState(() => _selectedCategory = category);
+                        },
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.filter_alt),
+                      tooltip: 'Filters',
+                      onPressed: openFilterSheet,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              sliver: SliverToBoxAdapter(
+                child: const Text(
+                  HomeUIConstants.activitiesLabel,
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: _buildBusinessesList(),
+            ),
+          ],
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(

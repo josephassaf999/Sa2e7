@@ -4,6 +4,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:sa2e7/core/utils/location_utils.dart';
+import 'favorites_service.dart';
 
 /// Service class handling all business-related Firebase operations
 class BusinessService {
@@ -23,7 +25,7 @@ class BusinessService {
 
   /// Calculate distance from user to business location
   static Future<double?> calculateDistance(dynamic rawLocation) async {
-    final businessLatLng = _extractLatLng(rawLocation);
+    final businessLatLng = LocationUtils.extractLatLng(rawLocation);
     if (businessLatLng == null) return null;
 
     try {
@@ -51,54 +53,14 @@ class BusinessService {
     }
   }
 
-  /// Extract LatLng from GeoPoint or Map {lat, lng}
-  static LatLng? _extractLatLng(dynamic rawLocation) {
-    if (rawLocation == null) return null;
-    if (rawLocation is GeoPoint) {
-      return LatLng(rawLocation.latitude, rawLocation.longitude);
-    }
-    if (rawLocation is Map) {
-      final lat = rawLocation['lat'];
-      final lng = rawLocation['lng'];
-      if (lat != null && lng != null) {
-        return LatLng((lat as num).toDouble(), (lng as num).toDouble());
-      }
-    }
-    return null;
-  }
-
   /// Check if business is in user's favorites
   static Future<bool> checkIfFavorite(String businessId) async {
-    final user = _auth.currentUser;
-    if (user == null) return false;
-
-    try {
-      final doc = await _firestore.collection('Users').doc(user.uid).get();
-      final favorites = List<String>.from(doc.data()?['favorites'] ?? []);
-      return favorites.contains(businessId);
-    } catch (e) {
-      return false;
-    }
+    return FavoritesService.isFavorite(businessId);
   }
 
   /// Toggle favorite status for a business
   static Future<void> toggleFavorite(String businessId) async {
-    final user = _auth.currentUser;
-    if (user == null)
-      throw Exception('User not logged in. Please login to add favorites.');
-
-    final userRef = _firestore.collection('Users').doc(user.uid);
-    final isFavorite = await checkIfFavorite(businessId);
-
-    if (isFavorite) {
-      await userRef.update({
-        'favorites': FieldValue.arrayRemove([businessId]),
-      });
-    } else {
-      await userRef.update({
-        'favorites': FieldValue.arrayUnion([businessId]),
-      });
-    }
+    return FavoritesService.toggleFavorite(businessId);
   }
 
   /// Launch external URL

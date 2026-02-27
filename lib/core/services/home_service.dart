@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'favorites_service.dart';
 
 /// Service layer for HomePage - Firestore and Auth operations
 class HomeService {
@@ -22,47 +23,12 @@ class HomeService {
 
   // ─── LOAD FAVORITES ──────────────────────────────────────────────────────────
   static Future<Set<String>> loadFavorites() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return {};
-
-    try {
-      final doc =
-          await FirebaseFirestore.instance
-              .collection('Users')
-              .doc(user.uid)
-              .get();
-      final favorites = List<String>.from(doc.data()?['favorites'] ?? []);
-      return favorites.toSet();
-    } catch (e) {
-      return {};
-    }
+    return FavoritesService.loadFavorites();
   }
 
   // ─── TOGGLE FAVORITE ──────────────────────────────────────────────────────────
   static Future<void> toggleFavorite(String businessId) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null)
-      throw Exception('User not logged in. Please login to manage favorites.');
-
-    final userRef = FirebaseFirestore.instance
-        .collection('Users')
-        .doc(user.uid);
-
-    // Get current favorites to check state
-    final doc = await userRef.get();
-    final currentFavorites = List<String>.from(doc.data()?['favorites'] ?? []);
-
-    if (currentFavorites.contains(businessId)) {
-      // Remove from favorites
-      await userRef.update({
-        'favorites': FieldValue.arrayRemove([businessId]),
-      });
-    } else {
-      // Add to favorites
-      await userRef.update({
-        'favorites': FieldValue.arrayUnion([businessId]),
-      });
-    }
+    return FavoritesService.toggleFavorite(businessId);
   }
 
   // ─── REFRESH BUSINESSES ──────────────────────────────────────────────────────

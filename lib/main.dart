@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:sa2e7/pages/homepage.dart';
 import 'package:sa2e7/welcome/onboarding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sa2e7/core/themes/app_theme.dart';
 import 'firebase/firbase_init.dart';
 import 'firebase/fcm_notification_handler.dart';
 
@@ -67,14 +68,8 @@ class MyApp extends StatelessWidget {
             return MaterialApp(
               debugShowCheckedModeBanner: false,
               title: "Sa2e7",
-              theme: ThemeData(
-                primarySwatch: Colors.purple,
-                brightness: Brightness.light,
-              ),
-              darkTheme: ThemeData(
-                primarySwatch: Colors.purple,
-                brightness: Brightness.dark,
-              ),
+              theme: AppTheme.lightTheme,
+              darkTheme: AppTheme.darkTheme,
               themeMode: mode,
               home: isFirstTime ? const OnboardingScreen() : const HomePage(),
             );

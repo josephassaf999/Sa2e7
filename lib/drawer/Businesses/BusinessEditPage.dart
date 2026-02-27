@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:sa2e7/core/services/business_edit_service.dart';
 import 'package:sa2e7/core/utils/business_edit_utils.dart';
 
@@ -431,11 +432,23 @@ class _BusinessEditPageState extends State<BusinessEditPage> {
                             Container(
                               margin: const EdgeInsets.only(right: 8),
                               width: 100,
-                              decoration: BoxDecoration(
+                              child: ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
-                                image: DecorationImage(
-                                  image: NetworkImage(entry.value),
+                                child: CachedNetworkImage(
+                                  imageUrl: entry.value,
                                   fit: BoxFit.cover,
+                                  placeholder:
+                                      (context, url) => Container(
+                                        color: Colors.grey.shade300,
+                                        child: const Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      ),
+                                  errorWidget:
+                                      (context, url, error) => Container(
+                                        color: Colors.grey.shade300,
+                                        child: const Icon(Icons.error_outline),
+                                      ),
                                 ),
                               ),
                             ),

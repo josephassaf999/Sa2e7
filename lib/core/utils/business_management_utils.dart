@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 /// UI Constants for BusinessManagement (YourListingsPage)
 class BusinessManagementUIConstants {
@@ -131,10 +132,17 @@ class BusinessManagementUIUtils {
               ),
               child:
                   imageUrl.isNotEmpty
-                      ? Image.network(
-                        imageUrl,
+                      ? CachedNetworkImage(
+                        imageUrl: imageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
+                        placeholder:
+                            (context, url) => Container(
+                              color: Colors.grey[300],
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            ),
+                        errorWidget: (context, url, error) {
                           return Container(
                             color: Colors.grey[300],
                             child: const Icon(Icons.image_not_supported),
