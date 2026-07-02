@@ -2,10 +2,11 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:sa2e7/firebase/api_keys.dart';
 
 /// Service layer for GoogleMapPage - Location and routing operations
 class MapService {
-  static const String googleApiKey = 'AIzaSyAYFRlXlNKavwP1G4ZcvD7lzI5jfXI6zfk';
+  static final String googleApiKey = ApiKeys.googleMapsApiKey;
   static final PolylinePoints _polylinePoints = PolylinePoints();
 
   // ─── INITIALIZE LOCATION ─────────────────────────────────────────────────────

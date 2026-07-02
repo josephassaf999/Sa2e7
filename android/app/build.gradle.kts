@@ -31,9 +31,12 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
-        // Support for passing API keys via build time variables
-        // Example: flutter run --dart-define=GOOGLE_MAPS_API_KEY=your_key_here
-        val mapsApiKey = project.findProperty("GOOGLE_MAPS_API_KEY") as? String ?: "YOUR_MAPS_API_KEY"
+        // Support for passing API keys via build time variables or local environment settings.
+        // Keep the real key out of source control and provide it locally when needed.
+        val mapsApiKey =
+            (project.findProperty("GOOGLE_MAPS_API_KEY") as? String)
+                ?: System.getenv("GOOGLE_MAPS_API_KEY")
+                ?: ""
         manifestPlaceholders["mapsApiKey"] = mapsApiKey
     }
 

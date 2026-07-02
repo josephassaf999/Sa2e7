@@ -46,8 +46,16 @@ app.*.map.json
 
 # Sensitive configuration files - NEVER commit these
 /lib/firebase/firebase_config.dart
+lib/firebase/firebase_config.dart
 .env
 .env.local
 android/app/google-services.json
+android/app/build.gradle.kts
+android/local.properties
+android/gradle.properties
+lib/firebase/api_keys.dart
+lib/firebase/firebase_config.dart
+SETUP_KEYS.md
 ios/GoogleService-Info.plist
+android/app/google-services.json
 secrets.dart
