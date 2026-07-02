@@ -11,8 +11,9 @@ class AddBusinessService {
   static Future<List<String>> uploadImages(List<File> selectedImages) async {
     final List<String> uploadedImageUrls = [];
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null)
+    if (user == null) {
       throw Exception('User not logged in. Please login to upload images.');
+    }
 
     final storage = FirebaseStorage.instanceFor(
       bucket: FirebaseConfig.storageBucket,
@@ -49,8 +50,9 @@ class AddBusinessService {
     required Map<String, Map<String, String?>> openingHours,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null)
+    if (user == null) {
       throw Exception('User not logged in. Cannot save business.');
+    }
 
     await FirebaseFirestore.instance.collection('businesses').add({
       'name': name.trim(),

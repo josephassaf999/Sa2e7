@@ -60,6 +60,7 @@ class AuthUIUtils {
         borderSide: BorderSide.none,
       ),
       filled: true,
+      // ignore: deprecated_member_use
       fillColor: AuthUIConstants.mintGreen.withOpacity(0.1),
     );
   }
