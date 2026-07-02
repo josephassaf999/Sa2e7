@@ -30,6 +30,8 @@ class _AddBusinessPageState extends State<AddBusinessPage> {
   LatLng? selectedLocation;
   GoogleMapController? _mapController;
   bool isLoading = false;
+  TimeOfDay? quickOpenTime;
+  TimeOfDay? quickCloseTime;
 
   late Map<String, Map<String, TimeOfDay?>> openingHours;
   final ImagePicker _picker = ImagePicker();
@@ -60,6 +62,50 @@ class _AddBusinessPageState extends State<AddBusinessPage> {
         openingHours[day]![isOpen ? "open" : "close"] = picked;
       });
     }
+  }
+
+  Future<void> pickQuickTime(bool isOpen) async {
+    final initialTime =
+        (isOpen ? quickOpenTime : quickCloseTime) ??
+        const TimeOfDay(hour: 9, minute: 0);
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+    );
+    if (picked != null) {
+      setState(() {
+        if (isOpen) {
+          quickOpenTime = picked;
+        } else {
+          quickCloseTime = picked;
+        }
+      });
+    }
+  }
+
+  void applyQuickHoursToAllDays() {
+    if (quickOpenTime == null && quickCloseTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select at least one time first')),
+      );
+      return;
+    }
+
+    setState(() {
+      openingHours = AddBusinessUIUtils.applyHoursToAllDays(
+        openingHours,
+        quickOpenTime,
+        quickCloseTime,
+      );
+    });
+  }
+
+  void clearAllHours() {
+    setState(() {
+      openingHours = AddBusinessUIUtils.clearAllHours(openingHours);
+      quickOpenTime = null;
+      quickCloseTime = null;
+    });
   }
 
   Future<void> pickImages() async {
@@ -236,6 +282,72 @@ class _AddBusinessPageState extends State<AddBusinessPage> {
                         ),
                       ),
                       const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              AddBusinessUIConstants.quickHoursLabel,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              AddBusinessUIConstants.quickHoursHint,
+                              style: TextStyle(color: Colors.grey.shade700),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () => pickQuickTime(true),
+                                    child: Text(
+                                      'Open: ${AddBusinessUIUtils.formatTime(quickOpenTime)}',
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () => pickQuickTime(false),
+                                    child: Text(
+                                      'Close: ${AddBusinessUIUtils.formatTime(quickCloseTime)}',
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed: applyQuickHoursToAllDays,
+                                  icon: const Icon(Icons.copy_all),
+                                  label: const Text(
+                                    AddBusinessUIConstants.applyToAllDaysLabel,
+                                  ),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: clearAllHours,
+                                  icon: const Icon(Icons.clear),
+                                  label: const Text(
+                                    AddBusinessUIConstants.clearAllLabel,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       ...AddBusinessUIConstants.weekdays.map((day) {
                         return Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
