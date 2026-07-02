@@ -48,6 +48,7 @@ app.*.map.json
 /lib/firebase/firebase_config.dart
 lib/firebase/firebase_config.dart
 .env
+android/app/build.gradle.kts
 .env.local
 android/app/google-services.json
 android/app/build.gradle.kts
