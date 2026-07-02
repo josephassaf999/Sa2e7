@@ -31,13 +31,8 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
-        // Support for passing API keys via build time variables or local environment settings.
-        // Keep the real key out of source control and provide it locally when needed.
-        val mapsApiKey =
-            (project.findProperty("GOOGLE_MAPS_API_KEY") as? String)
-                ?: System.getenv("GOOGLE_MAPS_API_KEY")
-                ?: ""
-        manifestPlaceholders["mapsApiKey"] = mapsApiKey
+        // Google Maps API Key
+        manifestPlaceholders["mapsApiKey"] = "AIzaSyAx3KJ0Js8d82ee4l8Gz3-gRv1dLEZi1HA"
     }
 
     buildTypes {

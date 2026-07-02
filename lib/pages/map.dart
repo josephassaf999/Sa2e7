@@ -41,6 +41,12 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
     _initLocation();
   }
 
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
+  }
+
   Future<void> _initLocation() async {
     final currentLoc = await MapService.initLocation();
     if (currentLoc == null) return;
@@ -66,6 +72,10 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
   }
 
   void _onMapCreated(GoogleMapController controller) {
+    if (!mounted) return;
+    if (_mapController != null) {
+      _mapController?.dispose();
+    }
     _mapController = controller;
     if (_currentLocation != null) {
       _mapController!.animateCamera(
@@ -256,6 +266,7 @@ class _GoogleMapPageState extends State<GoogleMapPage> {
                     }
 
                     return GoogleMap(
+                      key: ValueKey(_currentLocation.toString()),
                       onMapCreated: _onMapCreated,
                       initialCameraPosition: CameraPosition(
                         target: _currentLocation!,
