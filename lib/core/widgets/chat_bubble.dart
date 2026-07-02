@@ -12,14 +12,14 @@ class ChatBubble extends StatelessWidget {
   final String senderName;
 
   const ChatBubble({
-    Key? key,
+    super.key,
     required this.message,
     required this.isSentByCurrentUser,
     required this.timestamp,
     required this.senderName,
     this.isRead = false,
     this.onDelete,
-  }) : super(key: key);
+  });
 
   String _formatTime(DateTime time) {
     final now = DateTime.now();

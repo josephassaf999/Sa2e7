@@ -30,12 +30,25 @@ class _AuthPageState extends State<AuthPage> {
     }
 
     setState(() => loading = true);
-    final user = await _authService.login(
-      email: emailController.text,
-      password: passwordController.text,
-    );
-    setState(() => loading = false);
-    if (user != null && mounted) Navigator.pop(context);
+    try {
+      final user = await _authService.login(
+        email: emailController.text,
+        password: passwordController.text,
+      );
+      if (user != null && mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: Colors.red.shade900,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
   }
 
   // ─── REGISTER ───────────────────────────────────────────────────────────────
@@ -50,22 +63,48 @@ class _AuthPageState extends State<AuthPage> {
     }
 
     setState(() => loading = true);
-    final user = await _authService.register(
-      name: nameController.text,
-      email: emailController.text,
-      password: passwordController.text,
-      confirmPassword: confirmController.text,
-    );
-    setState(() => loading = false);
-    if (user != null && mounted) Navigator.pop(context);
+    try {
+      final user = await _authService.register(
+        name: nameController.text,
+        email: emailController.text,
+        password: passwordController.text,
+        confirmPassword: confirmController.text,
+      );
+      if (user != null && mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: Colors.red.shade900,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
   }
 
   // ─── GOOGLE SIGN IN ─────────────────────────────────────────────────────────
   Future<void> _googleSignIn() async {
     setState(() => loading = true);
-    final user = await _authService.signInWithGoogle();
-    setState(() => loading = false);
-    if (user != null && mounted) Navigator.pop(context);
+    try {
+      final user = await _authService.signInWithGoogle();
+      if (user != null && mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: Colors.red.shade900,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
   }
 
   @override

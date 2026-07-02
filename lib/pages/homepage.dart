@@ -1,10 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:sa2e7/drawer/Businesses/Businesses.dart';
 import 'package:sa2e7/pages/business_page.dart';
 import 'package:sa2e7/pages/messages_page.dart';
-import 'package:sa2e7/core/themes/design_tokens.dart';
 import '../drawer/profie tab/profile_page.dart';
 import '../drawer/settings_page.dart';
 import '../core/utils/nav_transition.dart';
@@ -13,6 +14,7 @@ import 'add_business.dart';
 import 'map.dart';
 import 'package:sa2e7/core/services/home_service.dart';
 import 'package:sa2e7/core/utils/home_utils.dart';
+import 'package:sa2e7/firebase/fcm_notification_handler.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -30,6 +32,8 @@ class _HomePageState extends State<HomePage> {
   String _selectedCategory = "All";
   String? currentUserName;
   Set<String> _favorites = {};
+  bool _showScrollToTop = false;
+  late ScrollController _scrollController;
 
   // Pagination state
   List<QueryDocumentSnapshot> _allLoadedBusinesses = [];
@@ -38,6 +42,9 @@ class _HomePageState extends State<HomePage> {
   bool _hasMoreData = true;
   final int _pageSize = 20;
 
+  // Auth state tracking for Provider
+  User? _previousUser;
+
   @override
   void initState() {
     super.initState();
@@ -45,15 +52,43 @@ class _HomePageState extends State<HomePage> {
     _loadFavorites();
     _loadMoreBusinesses(); // Load first page
 
-    FirebaseAuth.instance.authStateChanges().listen((user) {
-      if (!mounted) return;
-      if (user == null) {
-        setState(() => currentUserName = null);
-      } else {
+    _scrollController = ScrollController();
+    _scrollController.addListener(() {
+      setState(() {
+        _showScrollToTop = _scrollController.offset > 300;
+      });
+    });
+
+    // Initialize FCM in background (non-blocking) after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FCMNotificationHandler().initializeFCM().catchError((e) {
+        debugPrint('FCM init error: $e');
+      });
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Watch for auth state changes via Provider
+    final user = context.watch<User?>();
+
+    // Reload user data when auth state changes (login/logout)
+    if (user?.uid != _previousUser?.uid) {
+      _previousUser = user;
+      if (user != null) {
         _loadUserName();
         _loadFavorites();
+      } else {
+        setState(() => currentUserName = null);
       }
-    });
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserName() async {
@@ -97,7 +132,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onAddBusinessPressed() {
-    final user = FirebaseAuth.instance.currentUser;
+    HapticFeedback.mediumImpact();
+    // Using Provider to access auth state instead of FirebaseAuth.instance
+    final user = context.read<User?>();
     if (user != null) {
       Navigator.push(context, Nav.go(const AddBusinessPage()));
     } else {
@@ -113,6 +150,15 @@ class _HomePageState extends State<HomePage> {
       _lastDocument = null;
       _hasMoreData = true;
     });
+  }
+
+  void _scrollToTop() {
+    HapticFeedback.lightImpact();
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
   }
 
   Future<void> _loadMoreBusinesses() async {
@@ -148,9 +194,9 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoadingMore = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading more: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading more: $e')));
       }
     }
   }
@@ -163,73 +209,70 @@ class _HomePageState extends State<HomePage> {
     }
 
     // Client-side filtering
-    var filteredBusinesses = _allLoadedBusinesses.where((doc) {
-      final category = doc['category'] ?? 'All';
-      final name = doc['name'] ?? '';
-      final matchesCategory =
-          _selectedCategory == "All" || category == _selectedCategory;
-      final matchesSearch = _searchQuery.isEmpty ||
-          name.toLowerCase().contains(_searchQuery.toLowerCase());
-      final matchesFavorite =
-          !_showOnlyFavorites || _favorites.contains(doc.id);
-      return matchesCategory && matchesSearch && matchesFavorite;
-    }).toList();
+    var filteredBusinesses =
+        _allLoadedBusinesses.where((doc) {
+          final category = doc['category'] ?? 'All';
+          final name = doc['name'] ?? '';
+          final matchesCategory =
+              _selectedCategory == "All" || category == _selectedCategory;
+          final matchesSearch =
+              _searchQuery.isEmpty ||
+              name.toLowerCase().contains(_searchQuery.toLowerCase());
+          final matchesFavorite =
+              !_showOnlyFavorites || _favorites.contains(doc.id);
+          return matchesCategory && matchesSearch && matchesFavorite;
+        }).toList();
 
     if (filteredBusinesses.isEmpty) {
       return const SliverToBoxAdapter(
-        child: Center(
-          child: Text(HomeUIConstants.noBusinessesFound),
-        ),
+        child: Center(child: Text(HomeUIConstants.noBusinessesFound)),
       );
     }
 
     return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          // Add "Load More" button at the end if there's more data
-          if (index == filteredBusinesses.length) {
-            if (_hasMoreData) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: _isLoadingMore
-                    ? const Center(child: CircularProgressIndicator())
-                    : ElevatedButton(
+      delegate: SliverChildBuilderDelegate((context, index) {
+        // Add "Load More" button at the end if there's more data
+        if (index == filteredBusinesses.length) {
+          if (_hasMoreData) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child:
+                  _isLoadingMore
+                      ? const Center(child: CircularProgressIndicator())
+                      : ElevatedButton(
                         onPressed: _loadMoreBusinesses,
                         child: const Text('Load More'),
                       ),
-              );
-            }
-            return const SizedBox.shrink();
+            );
           }
+          return const SizedBox.shrink();
+        }
 
-          final b = filteredBusinesses[index];
-          final images = List<String>.from(b['images'] ?? []);
-          final imageUrl = images.isNotEmpty
-              ? images[0]
-              : 'assets/image/default_business.png';
-          final businessId = b.id;
+        final b = filteredBusinesses[index];
+        final images = List<String>.from(b['images'] ?? []);
+        final imageUrl =
+            images.isNotEmpty ? images[0] : 'assets/image/default_business.png';
+        final businessId = b.id;
+        final openingHours = b['openingHours'] as Map<String, dynamic>?;
 
-          return HomeUIUtils.buildBusinessCard(
-            businessId: businessId,
-            name: b['name'] ?? '',
-            category: b['category'] ?? '',
-            imageUrl: imageUrl,
-            isFavorite: _favorites.contains(businessId),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => BusinessDetailsPage(
-                    businessId: businessId,
-                  ),
-                ),
-              );
-            },
-            onFavoriteTapped: () => _toggleFavorite(businessId),
-          );
-        },
-        childCount: filteredBusinesses.length + (_hasMoreData ? 1 : 0),
-      ),
+        return HomeUIUtils.buildBusinessCard(
+          businessId: businessId,
+          name: b['name'] ?? '',
+          category: b['category'] ?? '',
+          imageUrl: imageUrl,
+          isFavorite: _favorites.contains(businessId),
+          openingHours: openingHours,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BusinessDetailsPage(businessId: businessId),
+              ),
+            );
+          },
+          onFavoriteTapped: () => _toggleFavorite(businessId),
+        );
+      }, childCount: filteredBusinesses.length + (_hasMoreData ? 1 : 0)),
     );
   }
 
@@ -291,12 +334,15 @@ class _HomePageState extends State<HomePage> {
                 ? TextField(
                   autofocus: true,
                   style: TextStyle(
-                    color: Theme.of(context).appBarTheme.foregroundColor ?? Colors.white,
+                    color:
+                        Theme.of(context).appBarTheme.foregroundColor ??
+                        Colors.white,
                   ),
                   decoration: InputDecoration(
                     hintText: "Search businesses...",
                     hintStyle: TextStyle(
-                      color: (Theme.of(context).appBarTheme.foregroundColor ?? Colors.white)
+                      color: (Theme.of(context).appBarTheme.foregroundColor ??
+                              Colors.white)
                           .withOpacity(0.7),
                     ),
                     border: InputBorder.none,
@@ -306,7 +352,9 @@ class _HomePageState extends State<HomePage> {
                 : Text(
                   HomeUIConstants.appTitle,
                   style: TextStyle(
-                    color: Theme.of(context).appBarTheme.foregroundColor ?? Colors.white,
+                    color:
+                        Theme.of(context).appBarTheme.foregroundColor ??
+                        Colors.white,
                   ),
                 ),
         actions: [
@@ -425,29 +473,41 @@ class _HomePageState extends State<HomePage> {
                               onPressed: () async {
                                 showDialog(
                                   context: context,
-                                  builder: (dialogContext) => AlertDialog(
-                                    title: const Text('Logout?'),
-                                    content: const Text('Are you sure you want to logout?'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(dialogContext),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () async {
-                                          Navigator.pop(dialogContext);
-                                          await FirebaseAuth.instance.signOut();
-                                          if (mounted) Navigator.pop(context);
-                                        },
-                                        child: Text(
-                                          'Logout',
-                                          style: TextStyle(
-                                            color: Theme.of(context).colorScheme.error,
-                                          ),
+                                  builder:
+                                      (dialogContext) => AlertDialog(
+                                        title: const Text('Logout?'),
+                                        content: const Text(
+                                          'Are you sure you want to logout?',
                                         ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed:
+                                                () => Navigator.pop(
+                                                  dialogContext,
+                                                ),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () async {
+                                              Navigator.pop(dialogContext);
+                                              await FirebaseAuth.instance
+                                                  .signOut();
+                                              if (mounted) {
+                                                Navigator.pop(context);
+                                              }
+                                            },
+                                            child: Text(
+                                              'Logout',
+                                              style: TextStyle(
+                                                color:
+                                                    Theme.of(
+                                                      context,
+                                                    ).colorScheme.error,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
                                 );
                               },
                               child: const Text(
@@ -487,7 +547,10 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.chat_bubble_outline, color: HomeUIConstants.primaryRed),
+              leading: Icon(
+                Icons.chat_bubble_outline,
+                color: HomeUIConstants.primaryRed,
+              ),
               title: const Text('Messages'),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 24,
@@ -525,6 +588,7 @@ class _HomePageState extends State<HomePage> {
         onRefresh: _refreshBusinesses,
         color: HomeUIConstants.primaryRed,
         child: CustomScrollView(
+          controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverPadding(
@@ -579,15 +643,43 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _onAddBusinessPressed,
-        backgroundColor: HomeUIConstants.primaryGreen,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          HomeUIConstants.addBusinessLabel,
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
+      floatingActionButton:
+          _showScrollToTop
+              ? SizedBox(
+                width: 56,
+                height: 120,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    FloatingActionButton(
+                      onPressed: _scrollToTop,
+                      backgroundColor: HomeUIConstants.primaryRed,
+                      mini: true,
+                      child: const Icon(Icons.arrow_upward),
+                    ),
+                    const SizedBox(height: 16),
+                    FloatingActionButton.extended(
+                      onPressed: _onAddBusinessPressed,
+                      backgroundColor: HomeUIConstants.primaryGreen,
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: const Text(
+                        HomeUIConstants.addBusinessLabel,
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+              : FloatingActionButton.extended(
+                onPressed: _onAddBusinessPressed,
+                backgroundColor: HomeUIConstants.primaryGreen,
+                icon: const Icon(Icons.add, color: Colors.white),
+                label: const Text(
+                  HomeUIConstants.addBusinessLabel,
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
     );
   }
 }

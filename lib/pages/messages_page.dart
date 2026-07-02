@@ -7,7 +7,7 @@ import 'package:intl/intl.dart' as intl;
 
 /// Messages page showing all conversations for the current user
 class MessagesPage extends StatefulWidget {
-  const MessagesPage({Key? key}) : super(key: key);
+  const MessagesPage({super.key});
 
   @override
   State<MessagesPage> createState() => _MessagesPageState();
@@ -299,10 +299,8 @@ class _MessagesPageState extends State<MessagesPage> {
 /// Simple refresh controller for handling refresh state
 class RefreshController {
   bool _isRefreshing = false;
-  bool _initialRefresh = false;
 
-  RefreshController({bool initialRefresh = false})
-    : _initialRefresh = initialRefresh;
+  RefreshController({bool initialRefresh = false});
 
   bool get isRefreshing => _isRefreshing;
 

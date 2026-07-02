@@ -6,8 +6,7 @@ class SharedLoadingWidget extends StatelessWidget {
   final String? message;
   final double size;
 
-  const SharedLoadingWidget({Key? key, this.message, this.size = 48})
-    : super(key: key);
+  const SharedLoadingWidget({super.key, this.message, this.size = 48});
 
   @override
   Widget build(BuildContext context) {
@@ -47,12 +46,12 @@ class SharedErrorWidget extends StatelessWidget {
   final IconData icon;
 
   const SharedErrorWidget({
-    Key? key,
+    super.key,
     this.title = 'Error',
     required this.message,
     this.onRetry,
     this.icon = Icons.error_outline,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -103,12 +102,12 @@ class SharedEmptyWidget extends StatelessWidget {
   final Widget? actionButton;
 
   const SharedEmptyWidget({
-    Key? key,
+    super.key,
     required this.title,
     required this.message,
     this.icon = Icons.inbox_outlined,
     this.actionButton,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -155,8 +154,7 @@ class SharedLoadingIndicator extends StatelessWidget {
   final double size;
   final Color? color;
 
-  const SharedLoadingIndicator({Key? key, this.size = 24, this.color})
-    : super(key: key);
+  const SharedLoadingIndicator({super.key, this.size = 24, this.color});
 
   @override
   Widget build(BuildContext context) {

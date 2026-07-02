@@ -98,8 +98,9 @@ class BusinessService {
     }
 
     final user = _auth.currentUser;
-    if (user == null)
+    if (user == null) {
       throw Exception('User not logged in. Please login to submit a review.');
+    }
 
     final userName =
         (user.displayName?.isNotEmpty ?? false)
