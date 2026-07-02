@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:sa2e7/core/utils/location_utils.dart';
@@ -19,6 +19,7 @@ class BusinessService {
           await _firestore.collection('businesses').doc(businessId).get();
       return doc.exists ? doc.data() : null;
     } catch (e) {
+      debugPrint('Error loading business: $e');
       return null;
     }
   }
@@ -41,6 +42,7 @@ class BusinessService {
       }
 
       final position = await Geolocator.getCurrentPosition();
+
       final meters = Geolocator.distanceBetween(
         position.latitude,
         position.longitude,

@@ -30,7 +30,36 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
   @override
   void initState() {
     super.initState();
-    _loadBusiness();
+    // Defer loading to next microtask - ensures UI renders first
+    Future.microtask(() => _loadBusiness());
+  }
+
+  /// Load business data without blocking UI
+  void _loadBusinessAsync() {
+    Future.microtask(() => _loadBusiness());
+  }
+
+  @override
+  void didUpdateWidget(covariant BusinessDetailsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload if businessId changed
+    if (oldWidget.businessId != widget.businessId) {
+      _resetState();
+      _loadBusinessAsync();
+    }
+  }
+
+  /// Reset state for new business
+  void _resetState() {
+    if (mounted) {
+      setState(() {
+        businessData = null;
+        isLoading = true;
+        distanceInKm = null;
+        isFavorite = false;
+        _currentImageIndex = 0;
+      });
+    }
   }
 
   @override
@@ -40,27 +69,56 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
   }
 
   Future<void> _loadBusiness() async {
-    final data = await BusinessService.loadBusiness(widget.businessId);
-    if (data != null) {
-      // Parallelize distance calculation and favorite check using Future.wait
-      final results = await Future.wait([
-        BusinessService.calculateDistance(data['location']),
-        BusinessService.checkIfFavorite(widget.businessId),
-      ]);
+    try {
+      final data = await BusinessService.loadBusiness(widget.businessId);
+      if (!mounted) return;
 
-      final distance = results[0] as double?;
-      final favorite = results[1] as bool;
+      setState(() {
+        businessData = data;
+        isLoading = false;
+      });
 
-      if (mounted) {
-        setState(() {
-          businessData = data;
-          distanceInKm = distance;
-          isFavorite = favorite;
-          isLoading = false;
+      if (data != null) {
+        // Load favorite immediately
+        _loadFavoriteAsync();
+
+        // Distance calculation is optional - skip if location is disabled
+        _calculateDistanceAsync().catchError((e) {
+          debugPrint('Distance error (non-critical): $e');
         });
       }
-    } else {
-      if (mounted) setState(() => isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+      debugPrint('Load business error: $e');
+    }
+  }
+
+  /// Load favorite status without blocking UI
+  Future<void> _loadFavoriteAsync() async {
+    try {
+      final favorite = await BusinessService.checkIfFavorite(widget.businessId);
+      if (mounted) {
+        setState(() => isFavorite = favorite);
+      }
+    } catch (e) {
+      debugPrint('Favorite check error: $e');
+    }
+  }
+
+  /// Calculate distance in background without blocking UI
+  Future<void> _calculateDistanceAsync() async {
+    if (businessData == null) return;
+    try {
+      final distance = await BusinessService.calculateDistance(
+        businessData!['location'],
+      );
+      if (mounted) {
+        setState(() => distanceInKm = distance);
+      }
+    } catch (e) {
+      debugPrint('Distance calculation error: $e');
     }
   }
 
@@ -186,7 +244,9 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
     final numRatings = businessData!['numRatings'] ?? 0;
 
     // Extract LatLng from GeoPoint or Map {lat, lng}
-    final LatLng? businessLatLng = LocationUtils.extractLatLng(businessData!['location']);
+    final LatLng? businessLatLng = LocationUtils.extractLatLng(
+      businessData!['location'],
+    );
 
     // Fix Instagram URL
     String instagramUrl = '';
@@ -241,32 +301,27 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
                             onPageChanged:
                                 (i) => setState(() => _currentImageIndex = i),
                             itemBuilder: (context, index) {
-                              return Hero(
-                                tag: index == 0
-                                    ? 'business_image_${widget.businessId}'
-                                    : 'business_image_${widget.businessId}_$index',
-                                child: CachedNetworkImage(
-                                  imageUrl: images[index],
-                                  fit: BoxFit.cover,
-                                  placeholder:
-                                      (context, url) => const ColoredBox(
-                                        color: Color(0xFFE0E0E0),
-                                        child: Center(
-                                          child: CircularProgressIndicator(),
+                              return CachedNetworkImage(
+                                imageUrl: images[index],
+                                fit: BoxFit.cover,
+                                placeholder:
+                                    (context, url) => const ColoredBox(
+                                      color: Color(0xFFE0E0E0),
+                                      child: Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    ),
+                                errorWidget:
+                                    (context, url, error) => const ColoredBox(
+                                      color: Color(0xFFE0E0E0),
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.broken_image,
+                                          size: 60,
+                                          color: Colors.grey,
                                         ),
                                       ),
-                                  errorWidget:
-                                      (context, url, error) => const ColoredBox(
-                                        color: Color(0xFFE0E0E0),
-                                        child: Center(
-                                          child: Icon(
-                                            Icons.broken_image,
-                                            size: 60,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ),
-                                ),
+                                    ),
                               );
                             },
                           ),
@@ -586,13 +641,18 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: _showAddReviewDialog,
-                      icon: Icon(Icons.edit_outlined, color: DesignTokens.primaryRed),
+                      icon: Icon(
+                        Icons.edit_outlined,
+                        color: DesignTokens.primaryRed,
+                      ),
                       label: Text(
                         "Write a Review",
                         style: TextStyle(color: DesignTokens.primaryRed),
                       ),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: DesignTokens.primaryRed.withOpacity(0.4)),
+                        side: BorderSide(
+                          color: DesignTokens.primaryRed.withOpacity(0.4),
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -665,9 +725,8 @@ class _BusinessDetailsPageState extends State<BusinessDetailsPage> {
                                   children: [
                                     CircleAvatar(
                                       radius: 18,
-                                      backgroundColor: DesignTokens.primaryRed.withOpacity(
-                                        0.12,
-                                      ),
+                                      backgroundColor: DesignTokens.primaryRed
+                                          .withOpacity(0.12),
                                       child: Text(
                                         userName.isNotEmpty
                                             ? userName[0].toUpperCase()

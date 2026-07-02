@@ -1,79 +1,67 @@
 import 'package:flutter/material.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import 'package:sa2e7/pages/homepage.dart';
 import 'package:sa2e7/welcome/onboarding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sa2e7/core/themes/app_theme.dart';
 import 'firebase/firbase_init.dart';
-import 'firebase/fcm_notification_handler.dart';
 
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
+
+// Cache for app state to avoid duplicate SharedPreferences loads
+late SharedPreferences _cachedPrefs;
+bool? _cachedFirstTime;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Load both Firebase and SharedPreferences in parallel (not FCM yet)
   try {
-    await initializeFirebase();
-    // Initialize FCM after Firebase is ready
-    await FCMNotificationHandler().initializeFCM();
+    await Future.wait([initializeFirebase(), _initializeAppState()]);
   } catch (e) {
-    debugPrint('Firebase initialization error: $e');
+    debugPrint('Initialization error: $e');
   }
 
-  // Load theme preference
-  final prefs = await SharedPreferences.getInstance();
-  final isDark = prefs.getBool('isDarkMode') ?? false;
+  runApp(const MyApp());
+}
+
+/// Initialize app state (theme + first time check) in parallel with Firebase
+Future<void> _initializeAppState() async {
+  _cachedPrefs = await SharedPreferences.getInstance();
+  _cachedFirstTime = _cachedPrefs.getBool('isFirstTime') ?? true;
+
+  final isDark = _cachedPrefs.getBool('isDarkMode') ?? false;
   themeNotifier.value = isDark ? ThemeMode.dark : ThemeMode.light;
-  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
-  // Check if it's the first time the user opens the app
-  Future<bool> _checkFirstTime() async {
-    final prefs = await SharedPreferences.getInstance();
-    final firstTime = prefs.getBool('isFirstTime') ?? true;
-
-    if (firstTime) {
-      await prefs.setBool('isFirstTime', false);
-    }
-
-    return firstTime;
-  }
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
       builder: (context, mode, _) {
-        return FutureBuilder<bool>(
-          future: _checkFirstTime(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const MaterialApp(
-                home: Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                ),
-              );
-            }
-            if (snapshot.hasError) {
-              return MaterialApp(
-                home: Scaffold(
-                  body: Center(child: Text('Error: \\${snapshot.error}')),
-                ),
-              );
-            }
-            final isFirstTime = snapshot.data ?? true;
-            return MaterialApp(
-              debugShowCheckedModeBanner: false,
-              title: "Sa2e7",
-              theme: AppTheme.lightTheme,
-              darkTheme: AppTheme.darkTheme,
-              themeMode: mode,
-              home: isFirstTime ? const OnboardingScreen() : const HomePage(),
-            );
-          },
+        // Mark first time as visited (non-blocking)
+        if (_cachedFirstTime == true) {
+          _cachedPrefs.setBool('isFirstTime', false);
+        }
+
+        return StreamProvider<User?>(
+          create: (context) => FirebaseAuth.instance.authStateChanges(),
+          initialData: null,
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: "Sa2e7",
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: mode,
+            home:
+                _cachedFirstTime ?? true
+                    ? const OnboardingScreen()
+                    : const HomePage(),
+          ),
         );
       },
     );

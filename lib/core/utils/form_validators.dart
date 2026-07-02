@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 /// Centralized form validation utilities
 /// Replaces scattered validators across auth_utils.dart and other files
 class FormValidators {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:sa2e7/core/utils/hours_utils.dart';
 
 /// UI utilities and constants for HomePage
 class HomeUIConstants {
@@ -120,6 +121,7 @@ class HomeUIUtils {
     required bool isFavorite,
     required VoidCallback onTap,
     required VoidCallback onFavoriteTapped,
+    Map<String, dynamic>? openingHours,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -131,28 +133,25 @@ class HomeUIUtils {
           child: Stack(
             children: [
               Positioned.fill(
-                child: Hero(
-                  tag: 'business_image_$businessId',
-                  child:
-                      imageUrl.startsWith('assets/')
-                          ? Image.asset(imageUrl, fit: BoxFit.cover)
-                          : CachedNetworkImage(
-                            imageUrl: imageUrl,
-                            fit: BoxFit.cover,
-                            placeholder:
-                                (context, url) => Container(
-                                  color: Colors.grey.shade300,
-                                  child: const Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
+                child:
+                    imageUrl.startsWith('assets/')
+                        ? Image.asset(imageUrl, fit: BoxFit.cover)
+                        : CachedNetworkImage(
+                          imageUrl: imageUrl,
+                          fit: BoxFit.cover,
+                          placeholder:
+                              (context, url) => Container(
+                                color: Colors.grey.shade300,
+                                child: const Center(
+                                  child: CircularProgressIndicator(),
                                 ),
-                            errorWidget:
-                                (context, url, error) => Container(
-                                  color: Colors.grey.shade300,
-                                  child: const Icon(Icons.error_outline),
-                                ),
-                          ),
-                ),
+                              ),
+                          errorWidget:
+                              (context, url, error) => Container(
+                                color: Colors.grey.shade300,
+                                child: const Icon(Icons.error_outline),
+                              ),
+                        ),
               ),
               Align(
                 alignment: Alignment.bottomLeft,
@@ -186,12 +185,42 @@ class HomeUIUtils {
                   ),
                 ),
               ),
+              // Status pill (Open/Closed)
+              if (openingHours != null) ...{
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: HoursUtils.getBusinessStatus(openingHours) == "Open"
+                          ? Colors.green
+                          : Colors.red,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      HoursUtils.getBusinessStatus(openingHours),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              },
               // Heart icon
               Positioned(
                 top: 8,
                 right: 8,
                 child: GestureDetector(
-                  onTap: onFavoriteTapped,
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    onFavoriteTapped();
+                  },
                   child: Icon(
                     isFavorite ? Icons.favorite : Icons.favorite_border,
                     color: HomeUIConstants.primaryRed,
